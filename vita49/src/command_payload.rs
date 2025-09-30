@@ -75,7 +75,7 @@ impl CommandPayload {
                 .count()
                 != 1
             {
-                panic!("CAM field in ACK packet does not select one of Validation, Exec, or Query");
+                panic!("CAM field in ACK packet does not exclusively select one of Validation, Exec, or Query");
             }
             if cam.validation() {
                 CommandPayload::ValidationAck(Ack::default())

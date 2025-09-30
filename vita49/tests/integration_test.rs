@@ -8,8 +8,8 @@ use std::process::Command;
 use semver_sort::semver::semver_compare;
 use subprocess::Exec;
 use tempfile::NamedTempFile;
-use vita49::Spectrum;
 use vita49::{prelude::*, ActionMode, ControlAckMode};
+use vita49::{CommandPayload, Spectrum};
 #[cfg(feature = "serde")]
 use vita49::{Indicators, SignalDataIndicators, Tsf, Tsi};
 
@@ -279,6 +279,66 @@ fn construct_control_packet() {
     assert!(wireshark_parse(&packet, &["Packet type: Unknown (6)"]).is_ok());
     log::info!("\nConstructed command packet:\n{packet:#?}");
     log::info!("\nPacket size (words): {}", packet.header().packet_size());
+}
+
+#[test]
+fn exec_ack_parsing() {
+    log_init();
+    let packet = Vrt::new_exec_ack_packet();
+    assert!(packet.header().is_ack_packet().is_ok());
+    assert!(matches!(
+        packet.payload().command().unwrap().payload(),
+        CommandPayload::ExecAck(_)
+    ));
+
+    let bytes = packet.to_bytes().unwrap();
+    let parsed_packet = Vrt::try_from(bytes.as_ref()).unwrap();
+
+    assert!(parsed_packet.header().is_ack_packet().is_ok());
+    assert!(matches!(
+        parsed_packet.payload().command().unwrap().payload(),
+        CommandPayload::ExecAck(_)
+    ));
+}
+
+#[test]
+fn validation_ack_parsing() {
+    log_init();
+    let packet = Vrt::new_validation_ack_packet();
+    assert!(packet.header().is_ack_packet().is_ok());
+    assert!(matches!(
+        packet.payload().command().unwrap().payload(),
+        CommandPayload::ValidationAck(_)
+    ));
+
+    let bytes = packet.to_bytes().unwrap();
+    let parsed_packet = Vrt::try_from(bytes.as_ref()).unwrap();
+
+    assert!(parsed_packet.header().is_ack_packet().is_ok());
+    assert!(matches!(
+        parsed_packet.payload().command().unwrap().payload(),
+        CommandPayload::ValidationAck(_)
+    ));
+}
+
+#[test]
+fn query_ack_parsing() {
+    log_init();
+    let packet = Vrt::new_query_ack_packet();
+    assert!(packet.header().is_ack_packet().is_ok());
+    assert!(matches!(
+        packet.payload().command().unwrap().payload(),
+        CommandPayload::QueryAck(_)
+    ));
+
+    let bytes = packet.to_bytes().unwrap();
+    let parsed_packet = Vrt::try_from(bytes.as_ref()).unwrap();
+
+    assert!(parsed_packet.header().is_ack_packet().is_ok());
+    assert!(matches!(
+        parsed_packet.payload().command().unwrap().payload(),
+        CommandPayload::QueryAck(_)
+    ));
 }
 
 #[cfg(feature = "serde")]

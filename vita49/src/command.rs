@@ -80,8 +80,10 @@ impl Command {
 
     /// Create a new, empty validation ACK packet.
     pub fn new_validation_ack() -> Command {
+        let mut cam = ControlAckMode::default();
+        cam.set_validation();
         Self {
-            cam: Default::default(),
+            cam,
             message_id: Default::default(),
             controllee_id: Default::default(),
             controllee_uuid: Default::default(),
@@ -93,8 +95,10 @@ impl Command {
 
     /// Create a new, empty execution ACK packet.
     pub fn new_exec_ack() -> Command {
+        let mut cam = ControlAckMode::default();
+        cam.set_execution();
         Self {
-            cam: Default::default(),
+            cam,
             message_id: Default::default(),
             controllee_id: Default::default(),
             controllee_uuid: Default::default(),
@@ -106,8 +110,10 @@ impl Command {
 
     /// Create a new, empty query ACK packet.
     pub fn new_query_ack() -> Command {
+        let mut cam = ControlAckMode::default();
+        cam.set_state();
         Self {
-            cam: Default::default(),
+            cam,
             message_id: Default::default(),
             controllee_id: Default::default(),
             controllee_uuid: Default::default(),
