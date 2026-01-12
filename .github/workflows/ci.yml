@@ -40,7 +40,7 @@ jobs:
       - name: Run tests
         run: cargo test --all-features
       - name: Run doc build
-        run: cargo doc --all-features
+        run: cargo doc --all-features --no-deps
       - name: Run clippy
         run: cargo clippy --all-features -- -Dwarnings
       - name: Run rustfmt
