@@ -75,7 +75,7 @@ impl Cif0 {
 pub struct Cif0Fields {
     reference_point_id: u32,
     bandwidth: u64,
-    if_ref_freq: u64,
+    if_ref_freq: i64,
     rf_ref_freq: u64,
     rf_ref_freq_offset: i64,
     if_band_offset: i64,
@@ -140,7 +140,7 @@ pub trait Cif0Manipulators {
 
     cif_basic!(cif0, reference_point_id, reference_point_id, u32);
     cif_radix!(cif0, bandwidth, bandwidth_hz, f64, FixedU64::<U20>);
-    cif_radix!(cif0, if_ref_freq, if_ref_freq_hz, f64, FixedU64::<U20>);
+    cif_radix!(cif0, if_ref_freq, if_ref_freq_hz, f64, FixedI64::<U20>);
     cif_radix!(cif0, rf_ref_freq, rf_ref_freq_hz, f64, FixedU64::<U20>);
     cif_radix!(cif0, rf_ref_freq_offset, rf_ref_freq_offset_hz, f64, FixedI64::<U20>);
     cif_radix!(cif0, if_band_offset, if_band_offset_hz, f64, FixedI64::<U20>);
