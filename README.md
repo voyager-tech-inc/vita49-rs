@@ -4,10 +4,6 @@ SPDX-FileCopyrightText: 2025 The vita49-rs Authors
 
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
-
-> [!WARNING]
-> APIs should not be considered stable until the 0.1.0 release.
-
 A crate for parsing and creating packets compatible with the
 ANSI/VITA-49.2-2017 standard.
 
@@ -215,7 +211,7 @@ This feature enables CIF7 support.
 To use this feature, enable it in your `Cargo.toml`:
 
 ```toml
-vita49 = { version = "0.0.6", features = ["cif7"] }
+vita49 = { version = "0.1.0", features = ["cif7"] }
 ```
 
 CIF7, also known as "field attributes", add an ability to provide descriptive
@@ -237,7 +233,7 @@ This feature enables [serde](https://serde.rs/) support.
 To use this feature, enable it in your `Cargo.toml`:
 
 ```toml
-vita49 = { version = "0.0.6", features = ["serde"] }
+vita49 = { version = "0.1.0", features = ["serde"] }
 ```
 
 With this feature enabled, you can serialize/deserialize structures provided
@@ -280,7 +276,7 @@ run this program via `cargo`:
 
 ```text
 % cargo run --features=serde --example json2vrt vita49/tests/spectral_data_packet.json5
-   Compiling vita49 v0.0.6 (vita49/vita49)
+   Compiling vita49 v0.1.0 (vita49/vita49)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.71s
      Running `target/debug/examples/json2vrt vita49/tests/spectral_data_packet.json5`
 Wrote VRT data to vita49/tests/spectral_data_packet.vrt

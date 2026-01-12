@@ -12,6 +12,6 @@ name = "pyo3_demo"
 crate-type = ["cdylib"]
 
 [dependencies]
-vita49 = { version = "0.0.6", path = "../vita49" }
+vita49 = { version = "0.1.0", path = "../vita49" }
 pyo3 = "0.27.0"
 jiff = "0.2.18"
