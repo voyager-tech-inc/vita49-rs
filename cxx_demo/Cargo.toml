@@ -20,7 +20,7 @@ name = "cxx_demo"
 test = false
 
 [dependencies]
-vita49 = { version = "0.0.6", path = "../vita49" }
+vita49 = { version = "0.0.7", path = "../vita49" }
 cxx = "1.0"
 
 [build-dependencies]
