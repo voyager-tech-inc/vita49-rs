@@ -23,40 +23,40 @@ pub enum AckLevel {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, DekuRead, DekuWrite)]
 #[deku(
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, cam: &ControlAckMode"
+    ctx = "endian: deku::ctx::Endian, _cam: &ControlAckMode"
 )]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ack {
     /// WIF0 indicator fields.
-    #[deku(cond = "cam.warning()")]
+    #[deku(cond = "_cam.warning()")]
     wif0: Option<Cif0>,
     /// WIF1 indicator fields.
-    #[deku(cond = "cam.warning() && wif0.is_some() && wif0.unwrap().cif1_enabled()")]
+    #[deku(cond = "_cam.warning() && wif0.is_some() && wif0.unwrap().cif1_enabled()")]
     wif1: Option<Cif1>,
     /// WIF2 indicator fields.
-    #[deku(cond = "cam.warning() && wif0.is_some() && wif0.unwrap().cif2_enabled()")]
+    #[deku(cond = "_cam.warning() && wif0.is_some() && wif0.unwrap().cif2_enabled()")]
     wif2: Option<Cif2>,
     /// WIF3 indicator fields.
-    #[deku(cond = "cam.warning() && wif0.is_some() && wif0.unwrap().cif3_enabled()")]
+    #[deku(cond = "_cam.warning() && wif0.is_some() && wif0.unwrap().cif3_enabled()")]
     wif3: Option<Cif3>,
     /// WIF7 indicator fields.
-    #[deku(cond = "cam.warning() && wif0.is_some() && wif0.unwrap().field_attributes_enabled()")]
+    #[deku(cond = "_cam.warning() && wif0.is_some() && wif0.unwrap().field_attributes_enabled()")]
     pub wif7: Option<Cif7>,
 
     /// EIF0 indicator fields.
-    #[deku(cond = "cam.error()")]
+    #[deku(cond = "_cam.error()")]
     eif0: Option<Cif0>,
     /// EIF1 indicator fields.
-    #[deku(cond = "cam.error() && eif0.is_some() && eif0.unwrap().cif1_enabled()")]
+    #[deku(cond = "_cam.error() && eif0.is_some() && eif0.unwrap().cif1_enabled()")]
     eif1: Option<Cif1>,
     /// EIF2 indicator fields.
-    #[deku(cond = "cam.error() && eif0.is_some() && eif0.unwrap().cif2_enabled()")]
+    #[deku(cond = "_cam.error() && eif0.is_some() && eif0.unwrap().cif2_enabled()")]
     eif2: Option<Cif2>,
     /// EIF3 indicator fields.
-    #[deku(cond = "cam.error() && eif0.is_some() && eif0.unwrap().cif3_enabled()")]
+    #[deku(cond = "_cam.error() && eif0.is_some() && eif0.unwrap().cif3_enabled()")]
     eif3: Option<Cif3>,
     /// EIF7 indicator fields.
-    #[deku(cond = "cam.error() && eif0.is_some() && eif0.unwrap().field_attributes_enabled()")]
+    #[deku(cond = "_cam.error() && eif0.is_some() && eif0.unwrap().field_attributes_enabled()")]
     pub eif7: Option<Cif7>,
 
     #[deku(

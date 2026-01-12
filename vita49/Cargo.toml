@@ -32,6 +32,7 @@ thiserror = "2.0.11"
 fixed = "= 1.27.0"
 half = "= 2.4.1"
 proc-macro-crate = "= 3.3.0"
+indexmap = "= 2.11.4"
 
 [features]
 default = []

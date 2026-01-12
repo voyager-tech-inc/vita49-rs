@@ -12,11 +12,11 @@ use crate::VitaError;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, DekuRead, DekuWrite)]
 #[deku(
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, packet_header: &PacketHeader"
+    ctx = "endian: deku::ctx::Endian, _packet_header: &PacketHeader"
 )]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SignalData {
-    #[deku(count = "packet_header.payload_size_words()")]
+    #[deku(count = "_packet_header.payload_size_words()")]
     data: Vec<u32>,
 }
 
