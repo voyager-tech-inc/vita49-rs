@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 The vita49-rs Authors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[build-system]
+requires = ["maturin>=1.11,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pyo3_demo"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]

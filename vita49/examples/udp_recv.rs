@@ -12,7 +12,7 @@ fn main() -> Result<(), std::io::Error> {
     println!("Entering receive loop...");
     loop {
         // Read in data from the socket
-        let (bytes_read, _src) = socket.recv_from(&mut buf)?;
+        let (bytes_read, src) = socket.recv_from(&mut buf)?;
 
         // Try to parse it as a VRT packet
         let packet = Vrt::try_from(&buf[..bytes_read])?;
@@ -40,6 +40,25 @@ fn main() -> Result<(), std::io::Error> {
                     "Got command packet:\n{}",
                     &packet.payload().command().unwrap()
                 );
+                let command = packet.payload().command().unwrap();
+                // Create an ACK packet based on what the control packet
+                // requested (or just return here if no ACK is requested).
+                let mut reply = if command.cam().execution() {
+                    Vrt::new_exec_ack_packet()
+                } else if command.cam().validation() {
+                    Vrt::new_validation_ack_packet()
+                } else if command.cam().state() {
+                    Vrt::new_query_ack_packet()
+                } else {
+                    continue;
+                };
+                // Mirror some of the header values from the command packet to make
+                // sure the controller knows which command we're replying to.
+                reply.set_stream_id(packet.stream_id());
+                reply.update_packet_size();
+
+                // Send a VITA 49.2 ACK back to the client
+                socket.send_to(&reply.to_bytes()?, src).unwrap();
             }
             // Other packet types are not covered in this example
             _ => unimplemented!(),
