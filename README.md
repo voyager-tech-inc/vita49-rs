@@ -198,6 +198,11 @@ using VITA packets. For an example of both sides of a C2 flow, see
 For an example of how to use this crate from a C++ app, see
 [`cxx_demo/README.md`](cxx_demo/README.md).
 
+## Python Interoperability
+
+For an example of how to use this crate from a Python app, see
+[`pyo3_demo/README.md`](pyo3_demo/README.md).
+
 ## Crate features
 
 By default, this crate does not enable any of its optional features, leaving

@@ -8,6 +8,7 @@ members = [
     "vita49",
     "vita49_macros",
     "cxx_demo",
+    "pyo3_demo",
     "vita49/examples/nats_control",
 ]
 

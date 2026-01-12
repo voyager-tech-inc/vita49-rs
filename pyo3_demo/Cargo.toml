@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 The vita49-rs Authors
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+name = "pyo3_demo"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+name = "pyo3_demo"
+crate-type = ["cdylib"]
+
+[dependencies]
+vita49 = { version = "0.0.6", path = "../vita49" }
+pyo3 = "0.27.0"
+jiff = "0.2.18"
