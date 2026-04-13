@@ -17,6 +17,7 @@ policies:
         locale: US
       conventional:
         types:
+          - build
           - chore
           - docs
           - perf
