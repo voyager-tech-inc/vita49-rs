@@ -386,6 +386,11 @@ updates of this crate. For example, if `vita49` `1.2.0` requires Rust `1.60.0`,
 versions `1.2.X` of `vita49` will also require Rust `1.6.0` or newer. However,
 `vita49` version `1.3.0` may require a newer minimum version of Rust.
 
+If you're using an old version of Rust, you may need to pin dependencies in your
+`Cargo.lock` file to download compatible versions. See our MSRV check in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the commands needed
+to make that build work.
+
 ## Crate Versioning
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

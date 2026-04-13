@@ -89,4 +89,13 @@ jobs:
         with:
           toolchain: 1.71.0
       - name: Run build
-        run: cargo build --all-features --package vita49
+        run: |
+          # To build with an older Rust toolchain, we have to
+          # specify some compatible crate versions.
+          cargo generate-lockfile
+          cargo update -p fixed --precise 1.27.0
+          cargo update -p half --precise 2.4.1
+          cargo update -p proc-macro-crate --precise 3.3.0
+          cargo update -p indexmap --precise 2.11.4
+          cargo update -p az --precise 1.2.1
+          cargo build --all-features --package vita49
