@@ -211,7 +211,7 @@ This feature enables CIF7 support.
 To use this feature, enable it in your `Cargo.toml`:
 
 ```toml
-vita49 = { version = "0.1.0", features = ["cif7"] }
+vita49 = { version = "1.0.0", features = ["cif7"] }
 ```
 
 CIF7, also known as "field attributes", add an ability to provide descriptive
@@ -233,7 +233,7 @@ This feature enables [serde](https://serde.rs/) support.
 To use this feature, enable it in your `Cargo.toml`:
 
 ```toml
-vita49 = { version = "0.1.0", features = ["serde"] }
+vita49 = { version = "1.0.0", features = ["serde"] }
 ```
 
 With this feature enabled, you can serialize/deserialize structures provided
@@ -276,7 +276,7 @@ run this program via `cargo`:
 
 ```text
 % cargo run --features=serde --example json2vrt vita49/tests/spectral_data_packet.json5
-   Compiling vita49 v0.1.0 (vita49/vita49)
+   Compiling vita49 v1.0.0 (vita49/vita49)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.71s
      Running `target/debug/examples/json2vrt vita49/tests/spectral_data_packet.json5`
 Wrote VRT data to vita49/tests/spectral_data_packet.vrt
