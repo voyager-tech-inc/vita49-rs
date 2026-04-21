@@ -67,7 +67,7 @@ pub use crate::query_ack::QueryAck;
 pub use crate::signal_data::SignalData;
 pub use crate::spectrum::*;
 pub use crate::threshold::Threshold;
-pub use crate::trailer::Trailer;
+pub use crate::trailer::{SampleFrameIndicator, Trailer};
 pub use crate::vrt::Vrt;
 
 /// Standard imports for the most commonly used structures and
