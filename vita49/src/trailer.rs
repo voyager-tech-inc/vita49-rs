@@ -13,12 +13,17 @@ use deku::prelude::*;
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SampleFrameIndicator {
+    /// Sample Frames are not applicable to data packets, or the entire Sample
+    /// Frame is contained in a single data packet
     #[deku(id = 0x0)]
     NotApplicable,
+    /// First data packet of current Sample Frame
     #[deku(id = 0x1)]
     FirstDataPacket,
+    /// Middle packet or packets of Sample Frame, i.e. "continuation" indicator
     #[deku(id = 0x2)]
     MiddleDataPacket,
+    /// Final data packet of current Sample Frame
     #[deku(id = 0x3)]
     FinalDataPacket,
 }
