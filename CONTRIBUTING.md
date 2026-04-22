@@ -23,7 +23,7 @@ and strategy are welcome as well.
 For new code to be merged, please make sure the following criteria are
 met:
 
-- `cargo test` passes.
+- `cargo test -p vita49` passes (see [testing](#testing) below).
     - If new features are added, please add documentation and tests!
 - `cargo clippy` passes with no warnings.
 - `cargo fmt` has been run.
@@ -32,6 +32,24 @@ met:
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - GitHub Workflows pass.
 - If the change is significant, add a line to the [`CHANGELOG.md`](CHANGELOG.md) file.
+
+### Testing
+
+This crate uses `cargo` for unit and integration testing. The various
+example programs/demos in this repo do not have unit tests, but should
+at least build. The individual demo READMEs have info on build requirements.
+
+For some tests, we use [Wireshark](https://www.wireshark.org/) (>= 4.5.0)
+to test parsing of the VRT packets we generate. If you want to run
+tests without wireshark, set `SKIP_WIRESHARK_TESTS=1` in your
+environment.
+
+Beyond that, running `cargo test -p vita49` runs all the tests
+necessary for merge.
+
+If you are adding an API, please add a doc comment that includes
+an example. These are automatically built and tested which helps
+show users how to use the crate _and_ tests your API.
 
 ### Signing Your Contribution
 

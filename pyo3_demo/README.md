@@ -14,6 +14,12 @@ while the main business logic is handled in Python.
 To achieve this, let's use [PyO3](https://pyo3.rs/v0.27.2/index.html)
 to handle FFI.
 
+## Prerequisites
+
+This app requires Python development headers/libraries to be available.
+
+- `python3-dev`
+
 ## Defining the Foreign Function Interface (FFI)
 
 PyO3 has [excellent documentation](https://pyo3.rs/v0.27.2/getting-started.html),
