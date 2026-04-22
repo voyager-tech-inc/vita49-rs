@@ -65,7 +65,7 @@ impl Payload {
         }
     }
 
-    /// Consumes the `Payload` struct and returns the innner `SignalData`
+    /// Consumes the `Payload` struct and returns the inner `SignalData`
     /// struct.
     ///
     /// # Errors
