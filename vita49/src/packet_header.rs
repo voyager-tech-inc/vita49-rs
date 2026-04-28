@@ -104,6 +104,13 @@ impl TryFrom<u8> for PacketType {
 /// have different meaning depending on if the packet is a
 /// signal data, context, or command packet.
 ///
+///
+/// | Header Bit | Indicator Bit | Data Packet | Context Packet | Command Packet |
+/// |------------|---------------|-------------|----------------|----------------|
+/// | 26 | 10 | Trailer Included | *Reserved* | Acknowledge Packet |
+/// | 25 | 9  | Not a V49.0 Packet | Not a V49.0 Packet | *Reserved* |
+/// | 24 | 8  | Spectrum or Time Packet | Timestamp Mode | Cancellation Packet |
+///
 /// See ANSI/VITA-49.2-2017 section 5.1.1.1 for more details.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, DekuRead, DekuWrite)]
 #[deku(
@@ -122,6 +129,69 @@ pub enum Indicators {
     /// The bits represent command indicators.
     #[deku(id = "PacketType::Command")]
     Command(CommandIndicators),
+}
+
+impl Indicators {
+    /// Offset into 2-byte word where the three bit indicators are stored
+    const OFFSET: u8 = 8;
+    /// Offset of left-most indicator field
+    const F1: u8 = Self::OFFSET + 2;
+    /// Offset of middle indicator field
+    const F2: u8 = Self::OFFSET + 1;
+    /// Offset of right-most indicator field
+    const F3: u8 = Self::OFFSET;
+    /// The bitmask for the indicator bits in the packet header.
+    const MASK: u16 = 0b111 << Self::OFFSET;
+    /// Gets the raw 16-bit value of the collected indicator flags.
+    fn as_u16(&self) -> u16 {
+        match self {
+            Indicators::SignalData(i) => {
+                (i.trailer_included as u16) << Self::F1
+                    | (i.not_a_vita490_packet as u16) << Self::F2
+                    | (i.signal_spectral_data as u16) << Self::F3
+            }
+            Indicators::Context(i) => {
+                // F1 is reserved
+                (i.not_a_vita490_packet as u16) << Self::F2 | (i.timestamp_mode as u16) << Self::F3
+            }
+            Indicators::Command(i) => {
+                // F2 is reserved
+                (i.ack_packet as u16) << Self::F1 | (i.cancellation_packet as u16) << Self::F3
+            }
+        }
+    }
+    /// Creates an Indicators struct from the raw 16-bit header value
+    fn from_u16_for_packet(value: u16, p_type: PacketType) -> Self {
+        let i1 = value & (1 << Self::F1) > 1;
+        let i2 = value & (1 << Self::F2) > 1;
+        let i3 = value & (1 << Self::F3) > 1;
+        match p_type {
+            PacketType::SignalData
+            | PacketType::SignalDataWithoutStreamId
+            | PacketType::ExtensionData
+            | PacketType::ExtensionDataWithoutStreamId => {
+                Indicators::SignalData(SignalDataIndicators {
+                    trailer_included: i1,
+                    not_a_vita490_packet: i2,
+                    signal_spectral_data: i3,
+                })
+            }
+            PacketType::Context | PacketType::ExtensionContext => {
+                Indicators::Context(ContextIndicators {
+                    // i1 is reserved
+                    not_a_vita490_packet: i2,
+                    timestamp_mode: i3.try_into().unwrap(),
+                })
+            }
+            PacketType::Command | PacketType::ExtensionCommand => {
+                Indicators::Command(CommandIndicators {
+                    ack_packet: i1,
+                    // i2 is reserved
+                    cancellation_packet: i3,
+                })
+            }
+        }
+    }
 }
 
 /// Signal data indicator fields.
@@ -306,53 +376,12 @@ impl PacketHeader {
     /// # }
     /// ```
     pub fn indicators(&self) -> Indicators {
-        let i1 = self.hword_1 & (1 << 10) > 1;
-        let i2 = self.hword_1 & (1 << 9) > 1;
-        let i3 = self.hword_1 & (1 << 8) > 1;
-        match self.packet_type() {
-            PacketType::SignalData
-            | PacketType::SignalDataWithoutStreamId
-            | PacketType::ExtensionData
-            | PacketType::ExtensionDataWithoutStreamId => {
-                Indicators::SignalData(SignalDataIndicators {
-                    trailer_included: i1,
-                    not_a_vita490_packet: i2,
-                    signal_spectral_data: i3,
-                })
-            }
-            PacketType::Context | PacketType::ExtensionContext => {
-                Indicators::Context(ContextIndicators {
-                    // i1 is reserved
-                    not_a_vita490_packet: i2,
-                    timestamp_mode: i3.try_into().unwrap(),
-                })
-            }
-            PacketType::Command | PacketType::ExtensionCommand => {
-                Indicators::Command(CommandIndicators {
-                    ack_packet: i1,
-                    // i2 is reserved
-                    cancellation_packet: i3,
-                })
-            }
-        }
+        Indicators::from_u16_for_packet(self.hword_1, self.packet_type())
     }
     /// Sets the header indicators.
     pub fn set_indicators(&mut self, indicators: Indicators) {
-        match indicators {
-            Indicators::SignalData(i) => {
-                self.hword_1 |= (i.trailer_included as u16) << 10;
-                self.hword_1 |= (i.not_a_vita490_packet as u16) << 9;
-                self.hword_1 |= (i.signal_spectral_data as u16) << 8;
-            }
-            Indicators::Context(i) => {
-                self.hword_1 |= (i.not_a_vita490_packet as u16) << 9;
-                self.hword_1 |= (i.timestamp_mode as u16) << 8;
-            }
-            Indicators::Command(i) => {
-                self.hword_1 |= (i.ack_packet as u16) << 10;
-                self.hword_1 |= (i.cancellation_packet as u16) << 8;
-            }
-        }
+        let flags = indicators.as_u16() & Indicators::MASK;
+        self.hword_1 = (self.hword_1 & !Indicators::MASK) | flags;
     }
     /// Returns Ok(true) if the packet is an Ack packet, Ok(false) if
     /// it's some other kind of Command packet, and an error if it's
@@ -528,6 +557,7 @@ impl PacketHeader {
 
 #[cfg(test)]
 mod tests {
+    use crate::Indicators;
 
     #[test]
     fn packet_header() {
@@ -552,5 +582,178 @@ mod tests {
 
         // Now the class_id_included bit should be true
         assert!(packet.header().class_id_included());
+    }
+
+    #[test]
+    fn can_toggle_indicators() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+
+        // Initially, trailer_included should be false
+        assert!(
+            matches!(packet.header().indicators(), Indicators::SignalData(si) if !si.trailer_included)
+        );
+
+        // Turn on trailer_included
+        packet
+            .header_mut()
+            .set_indicators(Indicators::SignalData(SignalDataIndicators {
+                trailer_included: true,
+                ..Default::default()
+            }));
+
+        // Now, trailer_included should be true
+        assert!(
+            matches!(packet.header().indicators(), Indicators::SignalData(si) if si.trailer_included)
+        );
+
+        // Turn trailer_included back off...
+        packet
+            .header_mut()
+            .set_indicators(Indicators::SignalData(SignalDataIndicators {
+                trailer_included: false,
+                ..Default::default()
+            }));
+
+        // Now, trailer_included should be false again
+        assert!(
+            matches!(packet.header().indicators(), Indicators::SignalData(si) if !si.trailer_included)
+        );
+    }
+
+    macro_rules! assert_indicators {
+        ($bits:expr, $ptype:expr, $variant:ident { $($field:ident: $val:expr),+ $(,)? }) => {{
+            let i = Indicators::from_u16_for_packet($bits << Indicators::OFFSET, $ptype);
+            assert!(
+                matches!(i, Indicators::$variant(si) if $( si.$field == $val )&&+),
+                "indicator mismatch for bits={:#05b}: {:?}",
+                $bits,
+                i,
+            );
+        }};
+    }
+
+    #[test]
+    fn sets_signal_indicator_bits() {
+        use crate::prelude::*;
+        assert_indicators!(
+            0b000,
+            PacketType::SignalData,
+            SignalData {
+                trailer_included: false,
+                not_a_vita490_packet: false,
+                signal_spectral_data: false
+            }
+        );
+        assert_indicators!(
+            0b100,
+            PacketType::SignalData,
+            SignalData {
+                trailer_included: true,
+                not_a_vita490_packet: false,
+                signal_spectral_data: false
+            }
+        );
+        assert_indicators!(
+            0b010,
+            PacketType::SignalData,
+            SignalData {
+                trailer_included: false,
+                not_a_vita490_packet: true,
+                signal_spectral_data: false
+            }
+        );
+        assert_indicators!(
+            0b001,
+            PacketType::SignalData,
+            SignalData {
+                trailer_included: false,
+                not_a_vita490_packet: false,
+                signal_spectral_data: true
+            }
+        );
+        assert_indicators!(
+            0b111,
+            PacketType::SignalData,
+            SignalData {
+                trailer_included: true,
+                not_a_vita490_packet: true,
+                signal_spectral_data: true
+            }
+        );
+    }
+
+    #[test]
+    fn sets_context_indicator_bits() {
+        use crate::prelude::*;
+        assert_indicators!(
+            0b000,
+            PacketType::Context,
+            Context {
+                not_a_vita490_packet: false,
+                timestamp_mode: TimestampMode::PreciseTiming
+            }
+        );
+        assert_indicators!(
+            0b010,
+            PacketType::Context,
+            Context {
+                not_a_vita490_packet: true,
+                timestamp_mode: TimestampMode::PreciseTiming
+            }
+        );
+        assert_indicators!(
+            0b001,
+            PacketType::Context,
+            Context {
+                not_a_vita490_packet: false,
+                timestamp_mode: TimestampMode::GeneralTiming
+            }
+        );
+        assert_indicators!(
+            0b011,
+            PacketType::Context,
+            Context {
+                not_a_vita490_packet: true,
+                timestamp_mode: TimestampMode::GeneralTiming
+            }
+        );
+    }
+
+    #[test]
+    fn sets_command_indicator_bits() {
+        use crate::prelude::*;
+        assert_indicators!(
+            0b000,
+            PacketType::Command,
+            Command {
+                ack_packet: false,
+                cancellation_packet: false
+            }
+        );
+        assert_indicators!(
+            0b100,
+            PacketType::Command,
+            Command {
+                ack_packet: true,
+                cancellation_packet: false
+            }
+        );
+        assert_indicators!(
+            0b001,
+            PacketType::Command,
+            Command {
+                ack_packet: false,
+                cancellation_packet: true
+            }
+        );
+        assert_indicators!(
+            0b101,
+            PacketType::Command,
+            Command {
+                ack_packet: true,
+                cancellation_packet: true
+            }
+        );
     }
 }

@@ -12,3 +12,4 @@ To see the full list of contributors, see the revision history in
 source control.
 
 - [Voyager Technologies, Inc.](https://voyagertechnologies.com)
+- [DataShapes AI, Inc.](https://datashapesai.com)
