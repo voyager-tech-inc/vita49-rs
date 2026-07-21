@@ -13,5 +13,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 vita49 = { version = "1.1.0", path = "../vita49" }
-pyo3 = "0.27.0"
+pyo3 = "0.29.0"
 jiff = "0.2.18"
