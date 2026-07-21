@@ -21,8 +21,8 @@ pub struct Threshold(i32);
 impl Threshold {
     /// Create a new `Threshold` object given stage 1 and 2 in dB.
     pub fn new(stage_1_threshold_db: f32, stage_2_threshold_db: f32) -> Threshold {
-        let s1 = FixedI16::<U7>::from_num(stage_1_threshold_db).to_bits() as i32;
-        let s2 = FixedI16::<U7>::from_num(stage_2_threshold_db).to_bits() as i32;
+        let s1 = FixedI16::<U7>::from_num(stage_1_threshold_db).to_bits() as u16 as i32;
+        let s2 = FixedI16::<U7>::from_num(stage_2_threshold_db).to_bits() as u16 as i32;
         Threshold((s2 << 16) | s1)
     }
 
@@ -39,7 +39,7 @@ impl Threshold {
 
     /// Sets stage 1 threshold (dB)
     pub fn set_stage_1_threshold_db(&mut self, stage_1_threshold_db: f32) {
-        let s1 = FixedI16::<U7>::from_num(stage_1_threshold_db).to_bits() as i32;
+        let s1 = FixedI16::<U7>::from_num(stage_1_threshold_db).to_bits() as u16 as i32;
         self.0 = (self.0 & (0xFFFF_0000u32 as i32)) | s1
     }
 
@@ -108,5 +108,21 @@ mod tests {
             s2,
             max_relative = 0.1
         );
+    }
+
+    #[test]
+    fn negative_stage1_does_not_clobber_stage2() {
+        // Regression: negative s1 was sign-extended to i32 before the OR,
+        // setting bits 16-31 and overwriting whatever s2 had placed there.
+        let s1: f32 = -20.5;
+        let s2: f32 = 3.0;
+        let t = Threshold::new(s1, s2);
+        assert_relative_eq!(t.stage_1_threshold_db(), s1, max_relative = 0.1);
+        assert_relative_eq!(t.stage_2_threshold_db(), s2, max_relative = 0.1);
+
+        let mut t2 = Threshold::new(0.0, s2);
+        t2.set_stage_1_threshold_db(s1);
+        assert_relative_eq!(t2.stage_1_threshold_db(), s1, max_relative = 0.1);
+        assert_relative_eq!(t2.stage_2_threshold_db(), s2, max_relative = 0.1);
     }
 }
