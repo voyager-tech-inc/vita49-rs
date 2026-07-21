@@ -548,7 +548,7 @@ impl Spectrum {
             WindowTimeDeltaInterpretation::Reserved => return Err(VitaError::ReservedField),
             _ => {
                 let v = u8::from(window_time_delta_interpretation) as u32;
-                self.spectrum_type = (self.spectrum_type & !(0b1111 << 8)) | (v << 16)
+                self.spectrum_type = (self.spectrum_type & !(0b1111 << 16)) | (v << 16)
             }
         }
         Ok(())
