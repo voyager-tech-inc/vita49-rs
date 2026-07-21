@@ -245,4 +245,26 @@ mod tests {
         assert_eq!(context.spectrum().unwrap().num_transform_points(), 1280);
         assert_eq!(context.spectrum().unwrap().f1_index(), -640);
     }
+
+    #[test]
+    fn negative_reference_level_does_not_corrupt_upper_bits() {
+        // Regression (cif_radix_masked): negative fixed-point to_bits() was cast
+        // directly to i32, sign-extending into reserved bits 16-31.
+        use crate::prelude::*;
+        use approx::assert_relative_eq;
+        let mut packet = Vrt::new_context_packet();
+        let context = packet.payload_mut().context_mut().unwrap();
+        context.set_reference_level_db(Some(-30.0));
+        let raw = context.cif0_fields().reference_level.unwrap();
+        assert_eq!(
+            raw >> 16,
+            0,
+            "upper 16 bits of reference_level must be zero"
+        );
+        assert_relative_eq!(
+            context.reference_level_db().unwrap(),
+            -30.0_f32,
+            max_relative = 0.1
+        );
+    }
 }

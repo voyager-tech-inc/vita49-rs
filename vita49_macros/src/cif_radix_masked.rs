@@ -141,7 +141,7 @@ pub fn cif_radix_masked(input: TokenStream) -> TokenStream {
             #[doc = #set_fn_doc]
             fn #set_fn(&mut self, #cif_field_w_unit: Option<#friendly_type>) {
                 if let Some(v) = #cif_field_w_unit {
-                    self.#cif_fields_mut().#cif_field = Some(#fixed_type::from_num(v).to_bits() as #base_type);
+                    self.#cif_fields_mut().#cif_field = Some((#fixed_type::from_num(v).to_bits() as #base_type) & (#mask as #base_type));
                     self.#cif_mut().#set_cif_field_fn();
                 } else {
                     self.#cif_fields_mut().#cif_field = None;
@@ -154,7 +154,7 @@ pub fn cif_radix_masked(input: TokenStream) -> TokenStream {
                 if let Some(vec) = #cif_attr_field_w_unit {
                     self.cif0_mut().#set_cif7_field_fn();
                     self.#cif_fields_mut().#cif_attr_field = vec.iter()
-                        .map(|v| #fixed_type::from_num(*v).to_bits() as #base_type)
+                        .map(|v| (#fixed_type::from_num(*v).to_bits() as #base_type) & (#mask as #base_type))
                         .collect();
                     self.#cif_mut().#set_cif_field_fn();
                 } else {
@@ -203,7 +203,7 @@ pub fn cif_radix_masked(input: TokenStream) -> TokenStream {
                         *self.#cif_fields_mut() = Some(#cif_fields_type_name::default());
                     }
                     self.#cif_fields_mut().as_mut().unwrap().#cif_field = Some(
-                        #fixed_type::from_num(v).to_bits() as #base_type
+                        (#fixed_type::from_num(v).to_bits() as #base_type) & (#mask as #base_type)
                     );
                 } else {
                     let mut clear_cif = false;
@@ -243,7 +243,7 @@ pub fn cif_radix_masked(input: TokenStream) -> TokenStream {
                     }
                     self.#cif_fields_mut().as_mut().unwrap().#cif_attr_field = vec
                         .iter()
-                        .map(|v| #fixed_type::from_num(*v).to_bits() as #base_type)
+                        .map(|v| (#fixed_type::from_num(*v).to_bits() as #base_type) & (#mask as #base_type))
                         .collect();
                 } else {
                     if let Some(f) = self.#cif_fields_mut() {
