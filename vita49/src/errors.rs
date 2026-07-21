@@ -64,4 +64,7 @@ pub enum VitaError {
     /// Error given when trying to set a reserved value.
     #[error("attempted to set reserved field")]
     ReservedField,
+    /// Error given when GPS ASCII payload bytes are not valid UTF-8.
+    #[error("GPS ASCII payload is not valid UTF-8")]
+    InvalidAscii(#[from] std::string::FromUtf8Error),
 }

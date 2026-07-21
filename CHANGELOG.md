@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public construction API for `EcefEphemeris` (`Default` plus getters/setters for the
   Manufacturer OUI, TSI/TSF, position-fix timestamps, and the radix-encoded ECEF position,
   attitude, and velocity)
+- Public construction API for `GpsAscii` (`Default` plus getters/setters for the
+  Manufacturer OUI and the ASCII sentence payload — `set_sentences` validates ASCII and
+  `sentences` returns a `Result`, per Rule 9.4.7-4)
+- Public construction API for `ContextAssociationLists` (`Default` plus getters/setters for
+  the Source, System, Vector-Component, and Asynchronous-Channel lists — and the
+  Asynchronous-Channel Tag list — keeping each list-size subfield in sync per §9.13.2)
 
 ### Fixed
 - `Gain::new` and `set_stage_1_gain_db` sign-extended a negative stage-1 gain over the
