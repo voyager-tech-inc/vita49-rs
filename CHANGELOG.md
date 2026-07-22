@@ -10,9 +10,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-07-22
 
 ### Added
+
 - Public construction API for `FormattedGps` (`Default` plus getters/setters for the
   Manufacturer OUI, TSI/TSF, position-fix timestamps, and radix-encoded geolocation values)
 - Public construction API for `EcefEphemeris` (`Default` plus getters/setters for the
@@ -26,8 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asynchronous-Channel Tag list — keeping each list-size subfield in sync per §9.13.2)
 
 ### Fixed
-- `Gain::new` and `set_stage_1_gain_db` sign-extended a negative stage-1 gain over the
-  stage-2 half-word
+
+- Multiple instances of implicit sign-extension incorrectly setting bits outside of the
+  target field.
+- Fixed incorrect bit shift in the window time delta interpretation setter method.
 
 ## [1.1.0] - 2026-05-12
 
@@ -131,6 +134,7 @@ change accordingly.
 - Initial crate release.
 - Basic documentation, test, and examples.
 
+[1.2.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.2.0
 [1.1.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.1.0
 [1.0.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.0.0
 [0.1.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.1.0
