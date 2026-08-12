@@ -187,7 +187,7 @@ Got signal data packet with stream ID 0xDEADBEEF and a payload of length 8
 
 VITA 49.2 introduces the ability to perform command and control (C2) operations
 using VITA packets. For an example of both sides of a C2 flow, see
-[the NATS control example programs](vita49/examples/README.md).
+[the NATS control example programs](vita49/examples/nats_control/README.md).
 
 ## C++ Interoperability
 
