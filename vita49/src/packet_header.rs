@@ -60,7 +60,7 @@ pub enum PacketType {
 impl PacketType {
     /// Returns true if the packet type has a signal data-style payload.
     pub fn has_signal_data_payload(&self) -> bool {
-        !matches!(
+        matches!(
             &self,
             PacketType::SignalData
                 | PacketType::ExtensionData
@@ -70,11 +70,11 @@ impl PacketType {
     }
     /// Returns true if the packet type has a context-style payload.
     pub fn has_context_payload(&self) -> bool {
-        !matches!(&self, PacketType::Context | PacketType::ExtensionContext)
+        matches!(&self, PacketType::Context | PacketType::ExtensionContext)
     }
     /// Returns true if the packet type has a command-style payload.
     pub fn has_command_payload(&self) -> bool {
-        !matches!(&self, PacketType::Command | PacketType::ExtensionCommand)
+        matches!(&self, PacketType::Command | PacketType::ExtensionCommand)
     }
 }
 
