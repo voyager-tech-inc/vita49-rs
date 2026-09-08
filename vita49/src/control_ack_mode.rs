@@ -16,7 +16,7 @@ use deku::prelude::*;
 )]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ControlAckMode(u32);
+pub struct ControlAckMode(#[deku(assert = "ControlAckMode::validate_cam_raw(*field_0)")] u32);
 
 /// Identification format (128-bit UUID or 32-bit ID).
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -59,6 +59,12 @@ pub enum TimingControlMode {
 }
 
 impl ControlAckMode {
+    pub(crate) fn validate_cam_raw(val: u32) -> bool {
+        let action_mode_bits = (val >> 23) & 0b11;
+        let timing_control_bits = (val >> 12) & 0b111;
+        action_mode_bits != 0b11 && timing_control_bits <= 0b100
+    }
+
     /// Generate a new Control Ack Mode field that's zeroed out.
     pub fn new(&self) -> ControlAckMode {
         ControlAckMode::default()
@@ -367,5 +373,30 @@ impl fmt::Display for ControlAckMode {
         writeln!(f, "  Error: {}", self.error())?;
         writeln!(f, "  Timing control: {:?}", self.timing_control())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_action_mode_fails_deku_parsing() {
+        // Bit 24:23 = 0b11 is invalid action mode
+        let invalid_cam_bytes: [u8; 4] = [0b0000_0001, 0b1000_0000, 0, 0];
+        let mut cursor = deku::no_std_io::Cursor::new(&invalid_cam_bytes[..]);
+        let mut reader = deku::reader::Reader::new(&mut cursor);
+        let res = ControlAckMode::from_reader_with_ctx(&mut reader, deku::ctx::Endian::Big);
+        assert!(matches!(res, Err(deku::DekuError::Assertion(_))));
+    }
+
+    #[test]
+    fn invalid_timing_control_fails_deku_parsing() {
+        // Bits 14:12 > 0b100 (e.g. 0b101 = 5) is invalid timing control
+        let invalid_cam_bytes: [u8; 4] = [0, 0, 0b0101_0000, 0];
+        let mut cursor = deku::no_std_io::Cursor::new(&invalid_cam_bytes[..]);
+        let mut reader = deku::reader::Reader::new(&mut cursor);
+        let res = ControlAckMode::from_reader_with_ctx(&mut reader, deku::ctx::Endian::Big);
+        assert!(matches!(res, Err(deku::DekuError::Assertion(_))));
     }
 }

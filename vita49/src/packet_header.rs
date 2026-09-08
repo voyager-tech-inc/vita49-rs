@@ -17,7 +17,9 @@ use crate::VitaError;
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PacketHeader {
+    #[deku(assert = "PacketHeader::validate_hword_1(*hword_1)")]
     hword_1: u16,
+    #[deku(assert = "PacketHeader::validate_packet_size(*hword_1, *packet_size)")]
     packet_size: u16,
 }
 
@@ -332,6 +334,41 @@ impl TryFrom<u8> for Tsf {
 }
 
 impl PacketHeader {
+    fn validate_hword_1(hword_1: u16) -> bool {
+        let packet_type_bits = ((hword_1 >> 12) & 0b1111) as u8;
+        PacketType::try_from(packet_type_bits).is_ok()
+    }
+
+    fn validate_packet_size(hword_1: u16, packet_size: u16) -> bool {
+        let dummy_header = PacketHeader {
+            hword_1,
+            packet_size,
+        };
+        packet_size >= dummy_header.min_packet_size_words()
+    }
+
+    /// Returns the minimum packet size in 32-bit words required to contain
+    /// the packet header and its enabled optional header/trailer fields.
+    pub fn min_packet_size_words(&self) -> u16 {
+        let mut min = 1; // 32-bit header itself
+        if self.stream_id_included() {
+            min += 1;
+        }
+        if self.class_id_included() {
+            min += 2;
+        }
+        if self.integer_timestamp_included() {
+            min += 1;
+        }
+        if self.fractional_timestamp_included() {
+            min += 2;
+        }
+        if self.trailer_included() {
+            min += 1;
+        }
+        min
+    }
+
     /// Gets the raw 32-bit value of the packet header.
     pub fn as_u32(&self) -> u32 {
         ((self.hword_1 as u32) << 16) | ((self.packet_size as u32) & 0xFFFF)
@@ -572,6 +609,27 @@ mod tests {
         let packet = Vrt::new_control_packet();
         assert_eq!(packet.header().packet_type(), PacketType::Command);
         assert_eq!(packet.header().as_u32() >> 28, 0b0110);
+    }
+
+    #[test]
+    fn invalid_packet_type_fails_deku_parsing() {
+        use crate::prelude::*;
+        // Packet type is upper 4 bits of hword_1 (bits 12..=15).
+        // 0x8000 sets packet type to 0x8, which is invalid (reserved values are 0x8..=0xF).
+        let invalid_header_bytes: [u8; 4] = [0x80, 0x00, 0x00, 0x01];
+        let res = Vrt::try_from(&invalid_header_bytes[..]);
+        assert!(matches!(res, Err(deku::DekuError::Assertion(_))));
+    }
+
+    #[test]
+    fn invalid_packet_size_fails_deku_parsing() {
+        use crate::prelude::*;
+        // Signal data packet with stream ID (packet type 0x1) requires at least:
+        // 1 (header) + 1 (stream_id) = 2 words.
+        // Giving packet_size = 0 or 1 should fail assertion.
+        let invalid_header_bytes: [u8; 4] = [0x10, 0x00, 0x00, 0x01];
+        let res = Vrt::try_from(&invalid_header_bytes[..]);
+        assert!(matches!(res, Err(deku::DekuError::Assertion(_))));
     }
 
     #[test]
