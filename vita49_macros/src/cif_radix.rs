@@ -164,7 +164,6 @@ pub fn cif_radix(input: TokenStream) -> TokenStream {
             #[doc = #set_fn_doc]
             fn #set_fn(&mut self, #cif_field_w_unit: Option<#friendly_type>) {
                 if let Some(v) = #cif_field_w_unit {
-                    self.cif0_mut().#set_cif7_field_fn();
                     if self.#cif().is_none() {
                         self.cif0_mut().#enable_cif_fn();
                         *self.#cif_mut() = Some(#cif_type_name::default())
@@ -204,6 +203,7 @@ pub fn cif_radix(input: TokenStream) -> TokenStream {
             #[cfg(feature = "cif7")]
             fn #set_attr_fn(&mut self, #cif_attr_field_w_unit: Option<Vec<#friendly_type>>) {
                 if let Some(vec) = #cif_attr_field_w_unit {
+                    self.cif0_mut().#set_cif7_field_fn();
                     if self.#cif().is_none() {
                         self.cif0_mut().#enable_cif_fn();
                         *self.#cif_mut() = Some(#cif_type_name::default())

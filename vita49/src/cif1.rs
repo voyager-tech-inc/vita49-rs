@@ -303,3 +303,35 @@ impl fmt::Display for Cif1 {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn setting_cif1_radix_field_does_not_enable_cif7() {
+        let mut packet = Vrt::new_context_packet();
+        let context = packet.payload_mut().context_mut().unwrap();
+
+        // Setting a CIF1 radix field (e.g. aux_freq_hz) must NOT set field_attributes_enabled in CIF0.
+        context.set_aux_freq_hz(Some(10e6));
+        assert!(Cif0Manipulators::cif0(context).cif1_enabled());
+        assert!(context.cif1().unwrap().aux_freq());
+        assert!(
+            !Cif0Manipulators::cif0(context).field_attributes_enabled(),
+            "setting aux_freq_hz must not enable CIF7 (field attributes)"
+        );
+    }
+
+    #[cfg(feature = "cif7")]
+    #[test]
+    fn setting_cif1_radix_attributes_enables_cif7() {
+        let mut packet = Vrt::new_context_packet();
+        let context = packet.payload_mut().context_mut().unwrap();
+
+        // Setting CIF1 radix attributes SHOULD set field_attributes_enabled in CIF0.
+        context.set_aux_freq_hz_attributes(Some(vec![10e6, 12e6]));
+        assert!(Cif0Manipulators::cif0(context).cif1_enabled());
+        assert!(Cif0Manipulators::cif0(context).field_attributes_enabled());
+    }
+}
