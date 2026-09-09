@@ -22,6 +22,7 @@ use deku::prelude::*;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Command {
     /// Control acknowledgement mode.
+    #[deku(assert = "Command::validate_cam(cam, packet_header)")]
     cam: ControlAckMode,
     /// Message ID.
     message_id: u32,
@@ -60,6 +61,19 @@ impl Default for Command {
 }
 
 impl Command {
+    fn validate_cam(cam: &ControlAckMode, packet_header: &PacketHeader) -> bool {
+        if let Ok(true) = packet_header.is_ack_packet() {
+            let selected_count = [cam.validation(), cam.execution(), cam.state()]
+                .iter()
+                .filter(|&x| *x)
+                .count();
+            if selected_count != 1 {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Create a new, empty control packet.
     pub fn new_control() -> Command {
         Command::default()
@@ -345,5 +359,38 @@ mod tests {
         command.set_cam(cam);
         command.controllee_id = Some(123);
         command.controller_uuid = Some(321);
+    }
+
+    #[test]
+    fn ack_packet_with_multiple_cam_ack_types_fails_deku_parsing() {
+        use deku::DekuContainerWrite;
+
+        let mut packet = Vrt::new_validation_ack_packet();
+        packet.update_packet_size();
+        let mut bytes = packet.to_bytes().unwrap();
+
+        // In Command, the CAM is the 32-bit word immediately following Stream ID (if stream ID included).
+        // For new_validation_ack_packet: header (4 bytes) + stream_id (4 bytes) = CAM at offset 8..12.
+        // Set both validation (bit 20) and execution (bit 19) in CAM.
+        // Bytes 8..12 in big endian: bit 20 is byte 9 bit 4, bit 19 is byte 9 bit 3.
+        bytes[9] |= (1 << 4) | (1 << 3);
+
+        let res = Vrt::try_from(&bytes[..]);
+        assert!(matches!(res, Err(deku::DekuError::Assertion(_))));
+    }
+
+    #[test]
+    fn ack_packet_with_no_cam_ack_types_fails_deku_parsing() {
+        use deku::DekuContainerWrite;
+
+        let mut packet = Vrt::new_validation_ack_packet();
+        packet.update_packet_size();
+        let mut bytes = packet.to_bytes().unwrap();
+
+        // Clear validation bit (bit 20), execution bit (bit 19), state bit (bit 18)
+        bytes[9] &= !((1 << 4) | (1 << 3) | (1 << 2));
+
+        let res = Vrt::try_from(&bytes[..]);
+        assert!(matches!(res, Err(deku::DekuError::Assertion(_))));
     }
 }
