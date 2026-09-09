@@ -55,7 +55,7 @@ impl ClassIdentifier {
     /// Note: while this API takes a 32-bit integer, only the least
     /// significant 24 bits are used.
     pub fn set_oui(&mut self, oui: u32) {
-        self.word_1 = self.word_1 & !(0xFF_FFFF) | oui;
+        self.word_1 = self.word_1 & !(0xFF_FFFF) | (oui & 0xFF_FFFF);
     }
 
     /// Gets the information class code.
