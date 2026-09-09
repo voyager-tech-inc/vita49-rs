@@ -221,89 +221,89 @@ pub enum WindowType {
     /// Triangle windowing.
     Triangle = 1,
     /// Hanning windowing (1.00 "alpha").
-    Hanning100 = 3,
+    Hanning100 = 2,
     /// Hanning windowing (2.00 "alpha").
-    Hanning200 = 4,
+    Hanning200 = 3,
     /// Hanning windowing (3.00 "alpha").
-    Hanning300 = 5,
+    Hanning300 = 4,
     /// Hanning windowing (4.00 "alpha").
-    Hanning400 = 6,
+    Hanning400 = 5,
     /// Hamming windowing.
-    Hamming = 7,
+    Hamming = 6,
     /// Riesz windowing.
-    Riesz = 8,
+    Riesz = 7,
     /// Riemann windowing.
-    Riemann = 9,
+    Riemann = 8,
     /// De La Vallepoussin windowing.
-    DeLaVallepoussin = 10,
+    DeLaVallepoussin = 9,
     /// Tukey windowing (0.25 "alpha").
-    Tukey025 = 11,
+    Tukey025 = 10,
     /// Tukey windowing (0.50 "alpha").
-    Tukey050 = 12,
+    Tukey050 = 11,
     /// Tukey windowing (0.75 "alpha").
-    Tukey075 = 13,
+    Tukey075 = 12,
     /// Bohman windowing.
-    Bohman = 14,
+    Bohman = 13,
     /// Poisson windowing (2.00 "alpha").
-    Poisson200 = 15,
+    Poisson200 = 14,
     /// Poisson windowing (3.00 "alpha").
-    Poisson300 = 16,
+    Poisson300 = 15,
     /// Poisson windowing (4.00 "alpha").
-    Poisson400 = 17,
+    Poisson400 = 16,
     /// Hanning-Poisson windowing (0.50 "alpha").
-    HanningPoisson050 = 18,
+    HanningPoisson050 = 17,
     /// Hanning-Poisson windowing (1.00 "alpha").
-    HanningPoisson100 = 19,
+    HanningPoisson100 = 18,
     /// Hanning-Poisson windowing (2.00 "alpha").
-    HanningPoisson200 = 20,
+    HanningPoisson200 = 19,
     /// Cauchy windowing (3.00 "alpha").
-    Cauchy300 = 21,
+    Cauchy300 = 20,
     /// Cauchy windowing (4.00 "alpha").
-    Cauchy400 = 22,
+    Cauchy400 = 21,
     /// Cauchy windowing (5.00 "alpha").
-    Cauchy500 = 23,
+    Cauchy500 = 22,
     /// Gaussian windowing (2.50 "alpha").
-    Gaussian250 = 24,
+    Gaussian250 = 23,
     /// Gaussian windowing (3.00 "alpha").
-    Gaussian300 = 25,
+    Gaussian300 = 24,
     /// Gaussian windowing (3.50 "alpha").
-    Gaussian350 = 26,
+    Gaussian350 = 25,
     /// Dolph-Chebyshiev windowing (2.50 "alpha").
-    DolphChebyshiev250 = 27,
+    DolphChebyshiev250 = 26,
     /// Dolph-Chebyshiev windowing (3.00 "alpha").
-    DolphChebyshiev300 = 28,
+    DolphChebyshiev300 = 27,
     /// Dolph-Chebyshiev windowing (3.50 "alpha").
-    DolphChebyshiev350 = 29,
+    DolphChebyshiev350 = 28,
     /// Dolph-Chebyshiev windowing (4.00 "alpha").
-    DolphChebyshiev400 = 30,
+    DolphChebyshiev400 = 29,
     /// Kaiser-Bessel windowing (2.00 "alpha").
-    KaiserBessel200 = 31,
+    KaiserBessel200 = 30,
     /// Kaiser-Bessel windowing (2.50 "alpha").
-    KaiserBessel250 = 32,
+    KaiserBessel250 = 31,
     /// Kaiser-Bessel windowing (3.00 "alpha").
-    KaiserBessel300 = 33,
+    KaiserBessel300 = 32,
     /// Kaiser-Bessel windowing (3.50 "alpha").
-    KaiserBessel350 = 34,
+    KaiserBessel350 = 33,
     /// Barcilon-Temes windowing (3.00 "alpha").
-    BarcilonTemes300 = 35,
+    BarcilonTemes300 = 34,
     /// Barcilon-Temes windowing (3.50 "alpha").
-    BarcilonTemes350 = 36,
+    BarcilonTemes350 = 35,
     /// Barcilon-Temes windowing (4.00 "alpha").
-    BarcilonTemes400 = 37,
+    BarcilonTemes400 = 36,
     /// Exact Blackman windowing.
-    ExactBlackman = 38,
+    ExactBlackman = 37,
     /// Blackman windowing.
-    Blackman = 39,
+    Blackman = 38,
     /// Blackman-Harris windowing (minimum 3-sample).
-    BlackmanHarrisMin3Sample = 40,
+    BlackmanHarrisMin3Sample = 39,
     /// Blackman-Harris windowing (minimum 4-sample).
-    BlackmanHarrisMin4Sample = 41,
+    BlackmanHarrisMin4Sample = 40,
     /// Blackman-Harris windowing (61 dB, 3-sample).
-    BlackmanHarris61Db3Sample = 42,
+    BlackmanHarris61Db3Sample = 41,
     /// Blackman-Harris windowing (74 dB, 4-sample).
-    BlackmanHarris74Db4Sample = 43,
+    BlackmanHarris74Db4Sample = 42,
     /// Kaiser-Bessel windowing (4-sample, 3.00 "alpha").
-    KaiserBessel4Sample300 = 44,
+    KaiserBessel4Sample300 = 43,
     /// Reserved for future expansion.
     Reserved,
     /// User-defined windowing scheme.
