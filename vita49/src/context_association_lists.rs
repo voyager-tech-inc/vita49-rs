@@ -147,6 +147,12 @@ impl ContextAssociationLists {
         );
         self.w2 = (self.w2 & !0x7FFF) | (ids.len() as u32);
         self.async_channel_list = ids.to_vec();
+        // If the async channel list length changed, any existing tag list no longer matches
+        // its length (Rule 9.13.2-6). Clear the tag list and drop the "A" bit.
+        if self.async_channel_tag_list.len() != ids.len() {
+            self.w2 &= !(1 << 15);
+            self.async_channel_tag_list.clear();
+        }
     }
 
     /// The Asynchronous-Channel Tag List — present only when the "A" bit is set (§9.13.2.4);
@@ -307,5 +313,24 @@ mod tests {
     fn async_list_over_cap_panics() {
         // Rule 9.13.2-5 caps the Asynchronous-Channel List Size at 32,767.
         ContextAssociationLists::default().set_async_channel_list(&vec![0u32; 32_768]);
+    }
+
+    #[test]
+    fn changing_async_channel_list_length_drops_mismatched_tag_list() {
+        let mut c = ContextAssociationLists::default();
+        c.set_async_channel_list(&[0xBBBB_0001, 0xBBBB_0002]);
+        c.set_async_channel_tag_list(&[0xCCCC_0001, 0xCCCC_0002]);
+        assert_eq!(c.async_channel_tag_list().len(), 2);
+        assert_ne!(c.w2 & (1 << 15), 0);
+
+        // Changing the async list length must drop the tag list and "A" bit to prevent desync
+        c.set_async_channel_list(&[0xBBBB_0001]);
+        assert!(c.async_channel_tag_list().is_empty());
+        assert_eq!(c.w2 & (1 << 15), 0);
+
+        let parsed = from_be_bytes(&to_be_bytes(&c));
+        assert_eq!(parsed, c);
+        assert_eq!(parsed.async_channel_list().len(), 1);
+        assert!(parsed.async_channel_tag_list().is_empty());
     }
 }
