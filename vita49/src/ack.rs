@@ -106,29 +106,45 @@ impl Ack {
     /// Get the ACK size (in 32-bit words).
     pub fn size_words(&self) -> u16 {
         let mut ret = 0;
+        for ind in [
+            self.wif0.is_some(),
+            self.wif1.is_some(),
+            self.wif2.is_some(),
+            self.wif3.is_some(),
+            self.wif7.is_some(),
+            self.eif0.is_some(),
+            self.eif1.is_some(),
+            self.eif2.is_some(),
+            self.eif3.is_some(),
+            self.eif7.is_some(),
+        ] {
+            if ind {
+                ret += 1;
+            }
+        }
         if let Some(f) = &self.wif0_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.wif1_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.wif2_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.wif3_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif0_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif1_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif2_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif3_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         ret
     }
