@@ -163,6 +163,7 @@ pub trait Cif0Manipulators {
     cif_basic!(cif0, formatted_ins, formatted_ins, FormattedGps);
     cif_basic!(cif0, ecef_ephemeris, ecef_ephemeris, EcefEphemeris);
     cif_basic!(cif0, relative_ephemeris, relative_ephemeris, EcefEphemeris);
+    cif_basic!(cif0, ephemeris_ref_id, ephemeris_ref_id, u32);
     cif_basic!(cif0, gps_ascii, gps_ascii, GpsAscii);
     cif_basic!(cif0, context_association_lists, context_association_lists, ContextAssociationLists);
 }
