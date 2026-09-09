@@ -22,7 +22,7 @@ categories = ["aerospace", "encoding", "network-programming", "parser-implementa
 publish = true
 
 [dependencies]
-vita49_macros = { version = "0.1.0", path = "../vita49_macros" }
+vita49_macros = { version = "0.1.1", path = "../vita49_macros" }
 deku = { version = "0.18.1", default-features = false, features = ["std"] }
 env_logger = "0.11.6"
 log = "0.4.22"
