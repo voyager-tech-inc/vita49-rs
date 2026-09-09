@@ -38,8 +38,7 @@ pub enum ActionMode {
     DryRun,
     /// The action should execute.
     Execute,
-    /// Reserved for future expansion.
-    Reserved,
+    // All other values are reserved
 }
 
 /// Timing control mode.
@@ -194,7 +193,7 @@ impl ControlAckMode {
             0b00 => ActionMode::NoAction,
             0b01 => ActionMode::DryRun,
             0b10 => ActionMode::Execute,
-            _ => panic!("invalid action mode"),
+            _ => unreachable!(),
         }
     }
 
@@ -215,7 +214,6 @@ impl ControlAckMode {
             ActionMode::NoAction => 0b00,
             ActionMode::DryRun => 0b01,
             ActionMode::Execute => 0b10,
-            ActionMode::Reserved => 0b00,
         };
         self.0 = (self.0 & !(0b11 << 23)) | (val << 23);
     }

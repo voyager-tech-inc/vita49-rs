@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::{
-    cif7::Cif7Opts, prelude::*, Cif0AckFields, Cif0AckManipulators, Cif1AckFields, Cif2AckFields,
-    Cif3AckFields, ControlAckMode,
+    cif7::Cif7Opts, prelude::*, Cif0AckFields, Cif0AckManipulators, Cif1AckFields,
+    Cif1AckManipulators, Cif2AckFields, Cif2AckManipulators, Cif3AckFields, Cif3AckManipulators,
+    ControlAckMode,
 };
 use deku::prelude::*;
 use std::fmt;
@@ -106,29 +107,45 @@ impl Ack {
     /// Get the ACK size (in 32-bit words).
     pub fn size_words(&self) -> u16 {
         let mut ret = 0;
+        for ind in [
+            self.wif0.is_some(),
+            self.wif1.is_some(),
+            self.wif2.is_some(),
+            self.wif3.is_some(),
+            self.wif7.is_some(),
+            self.eif0.is_some(),
+            self.eif1.is_some(),
+            self.eif2.is_some(),
+            self.eif3.is_some(),
+            self.eif7.is_some(),
+        ] {
+            if ind {
+                ret += 1;
+            }
+        }
         if let Some(f) = &self.wif0_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.wif1_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.wif2_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.wif3_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif0_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif1_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif2_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         if let Some(f) = &self.eif3_fields {
-            ret += 1 + f.size_words();
+            ret += f.size_words();
         }
         ret
     }
@@ -162,11 +179,153 @@ impl Cif0AckManipulators for Ack {
     }
 }
 
+macro_rules! impl_cif_ack {
+    (
+        $trait:ident,
+        $wif:ident, $wif_mut:ident, $wif_fields:ident, $wif_fields_mut:ident, $cif:ident, $fields:ident,
+        $eif:ident, $eif_mut:ident, $eif_fields:ident, $eif_fields_mut:ident
+    ) => {
+        impl $trait for Ack {
+            fn wif0(&self) -> Option<&Cif0> {
+                self.wif0.as_ref()
+            }
+            fn wif0_mut(&mut self) -> &mut Option<Cif0> {
+                &mut self.wif0
+            }
+            fn wif0_fields(&self) -> Option<&Cif0AckFields> {
+                self.wif0_fields.as_ref()
+            }
+            fn wif0_fields_mut(&mut self) -> &mut Option<Cif0AckFields> {
+                &mut self.wif0_fields
+            }
+
+            fn eif0(&self) -> Option<&Cif0> {
+                self.eif0.as_ref()
+            }
+            fn eif0_mut(&mut self) -> &mut Option<Cif0> {
+                &mut self.eif0
+            }
+            fn eif0_fields(&self) -> Option<&Cif0AckFields> {
+                self.eif0_fields.as_ref()
+            }
+            fn eif0_fields_mut(&mut self) -> &mut Option<Cif0AckFields> {
+                &mut self.eif0_fields
+            }
+
+            fn $wif(&self) -> Option<&$cif> {
+                self.$wif.as_ref()
+            }
+            fn $wif_mut(&mut self) -> &mut Option<$cif> {
+                &mut self.$wif
+            }
+            fn $wif_fields(&self) -> Option<&$fields> {
+                self.$wif_fields.as_ref()
+            }
+            fn $wif_fields_mut(&mut self) -> &mut Option<$fields> {
+                &mut self.$wif_fields
+            }
+
+            fn $eif(&self) -> Option<&$cif> {
+                self.$eif.as_ref()
+            }
+            fn $eif_mut(&mut self) -> &mut Option<$cif> {
+                &mut self.$eif
+            }
+            fn $eif_fields(&self) -> Option<&$fields> {
+                self.$eif_fields.as_ref()
+            }
+            fn $eif_fields_mut(&mut self) -> &mut Option<$fields> {
+                &mut self.$eif_fields
+            }
+        }
+    };
+}
+
+impl_cif_ack!(
+    Cif1AckManipulators,
+    wif1,
+    wif1_mut,
+    wif1_fields,
+    wif1_fields_mut,
+    Cif1,
+    Cif1AckFields,
+    eif1,
+    eif1_mut,
+    eif1_fields,
+    eif1_fields_mut
+);
+impl_cif_ack!(
+    Cif2AckManipulators,
+    wif2,
+    wif2_mut,
+    wif2_fields,
+    wif2_fields_mut,
+    Cif2,
+    Cif2AckFields,
+    eif2,
+    eif2_mut,
+    eif2_fields,
+    eif2_fields_mut
+);
+impl_cif_ack!(
+    Cif3AckManipulators,
+    wif3,
+    wif3_mut,
+    wif3_fields,
+    wif3_fields_mut,
+    Cif3,
+    Cif3AckFields,
+    eif3,
+    eif3_mut,
+    eif3_fields,
+    eif3_fields_mut
+);
+
 impl fmt::Display for Ack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ACK")?;
         // TODO: improve printout
         writeln!(f, "{self:#?}")?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AckResponse;
+    use crate::Cif2AckManipulators;
+
+    #[test]
+    fn setting_cif1_ack_field_sets_indicator_and_enables_cif1_in_wif0() {
+        let mut ack = Ack::default();
+        let response = AckResponse::default();
+
+        // Setting a CIF1 warning field must set wif1 and enable cif1 in wif0.
+        ack.set_aux_freq(AckLevel::Warning, Some(response));
+        assert!(ack.wif0.is_some(), "wif0 must be initialized");
+        assert!(
+            ack.wif0.unwrap().cif1_enabled(),
+            "wif0 must have cif1_enabled bit set"
+        );
+        assert!(ack.wif1.is_some(), "wif1 must be initialized");
+        assert!(
+            ack.wif1.unwrap().aux_freq(),
+            "wif1 must have aux_freq bit set (not lost to a temporary copy)"
+        );
+        assert!(ack.aux_freq().is_some());
+
+        // Setting a CIF2 field when wif0 is already Some must still set cif2_enabled in wif0.
+        ack.set_cited_sid(AckLevel::Warning, Some(response));
+        assert!(
+            ack.wif0.unwrap().cif2_enabled(),
+            "wif0 must have cif2_enabled bit set even if wif0 was already Some"
+        );
+        assert!(ack.wif2.unwrap().cited_sid());
+
+        // Same checks for Error level / eif.
+        ack.set_aux_freq(AckLevel::Error, Some(response));
+        assert!(ack.eif0.unwrap().cif1_enabled());
+        assert!(ack.eif1.unwrap().aux_freq());
     }
 }

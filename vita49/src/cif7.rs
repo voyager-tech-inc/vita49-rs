@@ -79,7 +79,11 @@ impl Cif7Opts {
         if let Some(c) = cif7 {
             Cif7Opts {
                 current_val: c.current(),
-                num_extra_attrs: if c.num_set() > 0 { c.num_set() - 1 } else { 0 },
+                num_extra_attrs: if c.current() {
+                    c.num_set().saturating_sub(1)
+                } else {
+                    c.num_set()
+                },
             }
         } else {
             Cif7Opts {
@@ -87,5 +91,50 @@ impl Cif7Opts {
                 num_extra_attrs: 0,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cif7_opts_extra_attrs_count() {
+        // None: defaults to current_val = true, 0 extra attrs
+        let opts = Cif7Opts::from(None);
+        assert!(opts.current_val);
+        assert_eq!(opts.num_extra_attrs, 0);
+
+        // Both current and average set: 1 current, 1 extra attr
+        let mut c = Cif7::default();
+        c.set_current();
+        c.set_average();
+        let opts = Cif7Opts::from(Some(&c));
+        assert!(opts.current_val);
+        assert_eq!(opts.num_extra_attrs, 1);
+
+        // Only average set (no current): 0 current, 1 extra attr
+        let mut c = Cif7::default();
+        c.set_average();
+        let opts = Cif7Opts::from(Some(&c));
+        assert!(!opts.current_val);
+        assert_eq!(
+            opts.num_extra_attrs, 1,
+            "when current is false, non-current attrs must not be decremented"
+        );
+
+        // Average and median set (no current): 0 current, 2 extra attrs
+        let mut c = Cif7::default();
+        c.set_average();
+        c.set_median();
+        let opts = Cif7Opts::from(Some(&c));
+        assert!(!opts.current_val);
+        assert_eq!(opts.num_extra_attrs, 2);
+
+        // No bits set: 0 current, 0 extra attrs
+        let c = Cif7::default();
+        let opts = Cif7Opts::from(Some(&c));
+        assert!(!opts.current_val);
+        assert_eq!(opts.num_extra_attrs, 0);
     }
 }

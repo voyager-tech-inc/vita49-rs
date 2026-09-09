@@ -116,55 +116,120 @@ impl From<SpectrumType> for u8 {
     }
 }
 
-/// Type of averaging being performed.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum AveragingType {
-    /// No averaging.
-    None = 0,
-    /// Linear averaging.
-    Linear = 1,
-    /// Peak hold averaging.
-    PeakHold = 2,
-    /// Min hold averaging.
-    MinHold = 3,
-    /// Exponential averaging.
-    Exponential = 4,
-    /// Median averaging.
-    Median = 5,
-    /// Smoothing (within the sample frame).
-    Smoothing = 6,
-    /// Reserved for future expansion.
-    Reserved,
+/// Type of averaging being performed (ANSI/VITA-49.2-2017 section 9.6.1.1.2).
+///
+/// This is a bit-field where multiple averaging types can be selected simultaneously
+/// (Permission 9.6.1.1.2-1). Bit 5 (`smoothing`) modifies whether averaging is
+/// performed within a Sample Frame rather than across Sample Frames (Rule 9.6.1.1.2-9).
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, DekuRead, DekuWrite,
+)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AveragingType(u8);
+
+impl AveragingType {
+    /// Bit 0: linear averaging (Rule 9.6.1.1.2-3).
+    pub fn linear(&self) -> bool {
+        self.0 & (1 << 0) != 0
+    }
+    /// Set linear averaging.
+    pub fn set_linear(&mut self) {
+        self.0 |= 1 << 0;
+    }
+    /// Unset linear averaging.
+    pub fn unset_linear(&mut self) {
+        self.0 &= !(1 << 0);
+    }
+
+    /// Bit 1: peak hold (Rule 9.6.1.1.2-4).
+    pub fn peak_hold(&self) -> bool {
+        self.0 & (1 << 1) != 0
+    }
+    /// Set peak hold.
+    pub fn set_peak_hold(&mut self) {
+        self.0 |= 1 << 1;
+    }
+    /// Unset peak hold.
+    pub fn unset_peak_hold(&mut self) {
+        self.0 &= !(1 << 1);
+    }
+
+    /// Bit 2: min hold (Rule 9.6.1.1.2-5).
+    pub fn min_hold(&self) -> bool {
+        self.0 & (1 << 2) != 0
+    }
+    /// Set min hold.
+    pub fn set_min_hold(&mut self) {
+        self.0 |= 1 << 2;
+    }
+    /// Unset min hold.
+    pub fn unset_min_hold(&mut self) {
+        self.0 &= !(1 << 2);
+    }
+
+    /// Bit 3: exponential averaging (Rule 9.6.1.1.2-6).
+    pub fn exponential(&self) -> bool {
+        self.0 & (1 << 3) != 0
+    }
+    /// Set exponential averaging.
+    pub fn set_exponential(&mut self) {
+        self.0 |= 1 << 3;
+    }
+    /// Unset exponential averaging.
+    pub fn unset_exponential(&mut self) {
+        self.0 &= !(1 << 3);
+    }
+
+    /// Bit 4: median averaging (Rule 9.6.1.1.2-7).
+    pub fn median(&self) -> bool {
+        self.0 & (1 << 4) != 0
+    }
+    /// Set median averaging.
+    pub fn set_median(&mut self) {
+        self.0 |= 1 << 4;
+    }
+    /// Unset median averaging.
+    pub fn unset_median(&mut self) {
+        self.0 &= !(1 << 4);
+    }
+
+    /// Bit 5: smoothing within the Sample Frame (Rule 9.6.1.1.2-9).
+    ///
+    /// Per Rule 9.6.1.1.2-9, indicates that averaging is performed on data
+    /// within a Sample Frame, as opposed to across multiple Sample Frames.
+    pub fn smoothing(&self) -> bool {
+        self.0 & (1 << 5) != 0
+    }
+    /// Set smoothing within the Sample Frame.
+    pub fn set_smoothing(&mut self) {
+        self.0 |= 1 << 5;
+    }
+    /// Unset smoothing within the Sample Frame.
+    pub fn unset_smoothing(&mut self) {
+        self.0 &= !(1 << 5);
+    }
+
+    /// Returns the raw u8 bit-field value.
+    pub fn as_u8(&self) -> u8 {
+        self.0
+    }
+
+    /// Returns true if no averaging type is selected.
+    pub fn is_none(&self) -> bool {
+        self.0 == 0
+    }
 }
 
 impl From<u8> for AveragingType {
     fn from(value: u8) -> Self {
-        match value {
-            0 => AveragingType::None,
-            1 => AveragingType::Linear,
-            2 => AveragingType::PeakHold,
-            4 => AveragingType::MinHold,
-            8 => AveragingType::Exponential,
-            16 => AveragingType::Median,
-            32 => AveragingType::Smoothing,
-            _ => AveragingType::Reserved,
-        }
+        AveragingType(value)
     }
 }
 
 impl From<AveragingType> for u8 {
     fn from(value: AveragingType) -> Self {
-        match value {
-            AveragingType::None => 0,
-            AveragingType::Linear => 1,
-            AveragingType::PeakHold => 2,
-            AveragingType::MinHold => 4,
-            AveragingType::Exponential => 8,
-            AveragingType::Median => 16,
-            AveragingType::Smoothing => 32,
-            AveragingType::Reserved => panic!("can't convert reserved variant"),
-        }
+        value.0
     }
 }
 
@@ -221,89 +286,89 @@ pub enum WindowType {
     /// Triangle windowing.
     Triangle = 1,
     /// Hanning windowing (1.00 "alpha").
-    Hanning100 = 3,
+    Hanning100 = 2,
     /// Hanning windowing (2.00 "alpha").
-    Hanning200 = 4,
+    Hanning200 = 3,
     /// Hanning windowing (3.00 "alpha").
-    Hanning300 = 5,
+    Hanning300 = 4,
     /// Hanning windowing (4.00 "alpha").
-    Hanning400 = 6,
+    Hanning400 = 5,
     /// Hamming windowing.
-    Hamming = 7,
+    Hamming = 6,
     /// Riesz windowing.
-    Riesz = 8,
+    Riesz = 7,
     /// Riemann windowing.
-    Riemann = 9,
+    Riemann = 8,
     /// De La Vallepoussin windowing.
-    DeLaVallepoussin = 10,
+    DeLaVallepoussin = 9,
     /// Tukey windowing (0.25 "alpha").
-    Tukey025 = 11,
+    Tukey025 = 10,
     /// Tukey windowing (0.50 "alpha").
-    Tukey050 = 12,
+    Tukey050 = 11,
     /// Tukey windowing (0.75 "alpha").
-    Tukey075 = 13,
+    Tukey075 = 12,
     /// Bohman windowing.
-    Bohman = 14,
+    Bohman = 13,
     /// Poisson windowing (2.00 "alpha").
-    Poisson200 = 15,
+    Poisson200 = 14,
     /// Poisson windowing (3.00 "alpha").
-    Poisson300 = 16,
+    Poisson300 = 15,
     /// Poisson windowing (4.00 "alpha").
-    Poisson400 = 17,
+    Poisson400 = 16,
     /// Hanning-Poisson windowing (0.50 "alpha").
-    HanningPoisson050 = 18,
+    HanningPoisson050 = 17,
     /// Hanning-Poisson windowing (1.00 "alpha").
-    HanningPoisson100 = 19,
+    HanningPoisson100 = 18,
     /// Hanning-Poisson windowing (2.00 "alpha").
-    HanningPoisson200 = 20,
+    HanningPoisson200 = 19,
     /// Cauchy windowing (3.00 "alpha").
-    Cauchy300 = 21,
+    Cauchy300 = 20,
     /// Cauchy windowing (4.00 "alpha").
-    Cauchy400 = 22,
+    Cauchy400 = 21,
     /// Cauchy windowing (5.00 "alpha").
-    Cauchy500 = 23,
+    Cauchy500 = 22,
     /// Gaussian windowing (2.50 "alpha").
-    Gaussian250 = 24,
+    Gaussian250 = 23,
     /// Gaussian windowing (3.00 "alpha").
-    Gaussian300 = 25,
+    Gaussian300 = 24,
     /// Gaussian windowing (3.50 "alpha").
-    Gaussian350 = 26,
+    Gaussian350 = 25,
     /// Dolph-Chebyshiev windowing (2.50 "alpha").
-    DolphChebyshiev250 = 27,
+    DolphChebyshiev250 = 26,
     /// Dolph-Chebyshiev windowing (3.00 "alpha").
-    DolphChebyshiev300 = 28,
+    DolphChebyshiev300 = 27,
     /// Dolph-Chebyshiev windowing (3.50 "alpha").
-    DolphChebyshiev350 = 29,
+    DolphChebyshiev350 = 28,
     /// Dolph-Chebyshiev windowing (4.00 "alpha").
-    DolphChebyshiev400 = 30,
+    DolphChebyshiev400 = 29,
     /// Kaiser-Bessel windowing (2.00 "alpha").
-    KaiserBessel200 = 31,
+    KaiserBessel200 = 30,
     /// Kaiser-Bessel windowing (2.50 "alpha").
-    KaiserBessel250 = 32,
+    KaiserBessel250 = 31,
     /// Kaiser-Bessel windowing (3.00 "alpha").
-    KaiserBessel300 = 33,
+    KaiserBessel300 = 32,
     /// Kaiser-Bessel windowing (3.50 "alpha").
-    KaiserBessel350 = 34,
+    KaiserBessel350 = 33,
     /// Barcilon-Temes windowing (3.00 "alpha").
-    BarcilonTemes300 = 35,
+    BarcilonTemes300 = 34,
     /// Barcilon-Temes windowing (3.50 "alpha").
-    BarcilonTemes350 = 36,
+    BarcilonTemes350 = 35,
     /// Barcilon-Temes windowing (4.00 "alpha").
-    BarcilonTemes400 = 37,
+    BarcilonTemes400 = 36,
     /// Exact Blackman windowing.
-    ExactBlackman = 38,
+    ExactBlackman = 37,
     /// Blackman windowing.
-    Blackman = 39,
+    Blackman = 38,
     /// Blackman-Harris windowing (minimum 3-sample).
-    BlackmanHarrisMin3Sample = 40,
+    BlackmanHarrisMin3Sample = 39,
     /// Blackman-Harris windowing (minimum 4-sample).
-    BlackmanHarrisMin4Sample = 41,
+    BlackmanHarrisMin4Sample = 40,
     /// Blackman-Harris windowing (61 dB, 3-sample).
-    BlackmanHarris61Db3Sample = 42,
+    BlackmanHarris61Db3Sample = 41,
     /// Blackman-Harris windowing (74 dB, 4-sample).
-    BlackmanHarris74Db4Sample = 43,
+    BlackmanHarris74Db4Sample = 42,
     /// Kaiser-Bessel windowing (4-sample, 3.00 "alpha").
-    KaiserBessel4Sample300 = 44,
+    KaiserBessel4Sample300 = 43,
     /// Reserved for future expansion.
     Reserved,
     /// User-defined windowing scheme.
@@ -519,15 +584,14 @@ impl Spectrum {
     /// Sets the averaging type.
     ///
     /// # Errors
-    /// You may not set the averaging type to the [`AveragingType::Reserved`] variant.
+    /// Bits 6 and 7 are reserved in VITA 49.2. If any reserved bits are set,
+    /// returns [`VitaError::ReservedField`].
     pub fn set_averaging_type(&mut self, averaging_type: AveragingType) -> Result<(), VitaError> {
-        match averaging_type {
-            AveragingType::Reserved => return Err(VitaError::ReservedField),
-            _ => {
-                let v = u8::from(averaging_type) as u32;
-                self.spectrum_type = (self.spectrum_type & !(0xFF << 8)) | (v << 8)
-            }
+        if (averaging_type.as_u8() & 0b1100_0000) != 0 {
+            return Err(VitaError::ReservedField);
         }
+        let v = averaging_type.as_u8() as u32;
+        self.spectrum_type = (self.spectrum_type & !(0xFF << 8)) | (v << 8);
         Ok(())
     }
 
@@ -725,5 +789,54 @@ impl fmt::Display for Spectrum {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn averaging_type_bitfield_manipulation() {
+        let mut avg = AveragingType::default();
+        assert!(avg.is_none());
+        assert_eq!(avg.as_u8(), 0);
+
+        // Can combine multiple averaging types (Permission 9.6.1.1.2-1) + smoothing (Rule 9.6.1.1.2-9)
+        avg.set_linear();
+        avg.set_peak_hold();
+        avg.set_smoothing();
+
+        assert!(avg.linear());
+        assert!(avg.peak_hold());
+        assert!(avg.smoothing());
+        assert!(!avg.min_hold());
+        assert!(!avg.exponential());
+        assert!(!avg.median());
+
+        // Value = 1 (linear) | 2 (peak hold) | 32 (smoothing) = 35
+        assert_eq!(avg.as_u8(), 35);
+        assert_eq!(u8::from(avg), 35);
+
+        // Unsetting works as expected
+        avg.unset_peak_hold();
+        assert!(!avg.peak_hold());
+        assert_eq!(avg.as_u8(), 33);
+        avg.set_peak_hold();
+
+        // Setting on Spectrum struct round-trips
+        let mut spec = Spectrum::default();
+        spec.set_averaging_type(avg).unwrap();
+        assert_eq!(spec.averaging_type().as_u8(), 35);
+        assert!(spec.averaging_type().linear());
+        assert!(spec.averaging_type().peak_hold());
+        assert!(spec.averaging_type().smoothing());
+
+        // Reserved bits (bits 6 and 7) are rejected
+        let invalid = AveragingType(0b0100_0000);
+        assert!(matches!(
+            spec.set_averaging_type(invalid),
+            Err(VitaError::ReservedField)
+        ));
     }
 }

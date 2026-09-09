@@ -171,14 +171,15 @@ pub fn ack_field(input: TokenStream) -> TokenStream {
                 match level {
                     AckLevel::Warning => {
                         if let Some(r) = response {
+                            if self.wif0().is_none() {
+                                *self.wif0_mut() = Some(Cif0::default());
+                            }
+                            self.wif0_mut().as_mut().unwrap().#set_cif_enabled_fn();
+
                             if self.#wif().is_none() {
                                 *self.#wif_mut() = Some(#cif::default());
-                                if self.wif0().is_none() {
-                                    *self.wif0_mut() = Some(Cif0::default());
-                                    self.wif0_mut().unwrap().#set_cif_enabled_fn();
-                                }
                             }
-                            self.#wif_mut().unwrap().#set_ack_field_fn();
+                            self.#wif_mut().as_mut().unwrap().#set_ack_field_fn();
 
                             if self.#wif_fields().is_none() {
                                 *self.#wif_fields_mut() = Some(#cif_ack_fields::default());
@@ -186,10 +187,10 @@ pub fn ack_field(input: TokenStream) -> TokenStream {
                             self.#wif_fields_mut().as_mut().unwrap().#ack_field = Some(r);
                         } else {
                             let mut clear_wif = false;
-                            if let Some(f) = self.#wif_fields_mut() {
+                            if let Some(f) = self.#wif_fields_mut().as_mut() {
                                 f.#ack_field = None;
                             }
-                            if let Some(w) = self.#wif_mut() {
+                            if let Some(w) = self.#wif_mut().as_mut() {
                                 w.#unset_ack_field_fn();
                                 if w.empty() {
                                     clear_wif = true;
@@ -198,7 +199,7 @@ pub fn ack_field(input: TokenStream) -> TokenStream {
                             if clear_wif {
                                 *self.#wif_mut() = None;
                                 *self.#wif_fields_mut() = None;
-                                if let Some(w) = self.wif0_mut() {
+                                if let Some(w) = self.wif0_mut().as_mut() {
                                     w.#unset_cif_enabled_fn();
                                 }
                             }
@@ -206,14 +207,15 @@ pub fn ack_field(input: TokenStream) -> TokenStream {
                     },
                     AckLevel::Error => {
                         if let Some(r) = response {
+                            if self.eif0().is_none() {
+                                *self.eif0_mut() = Some(Cif0::default());
+                            }
+                            self.eif0_mut().as_mut().unwrap().#set_cif_enabled_fn();
+
                             if self.#eif().is_none() {
                                 *self.#eif_mut() = Some(#cif::default());
-                                if self.eif0().is_none() {
-                                    *self.eif0_mut() = Some(Cif0::default());
-                                    self.eif0_mut().unwrap().#set_cif_enabled_fn();
-                                }
                             }
-                            self.#eif_mut().unwrap().#set_ack_field_fn();
+                            self.#eif_mut().as_mut().unwrap().#set_ack_field_fn();
 
                             if self.#eif_fields().is_none() {
                                 *self.#eif_fields_mut() = Some(#cif_ack_fields::default());
@@ -221,10 +223,10 @@ pub fn ack_field(input: TokenStream) -> TokenStream {
                             self.#eif_fields_mut().as_mut().unwrap().#ack_field = Some(r);
                         } else {
                             let mut clear_eif = false;
-                            if let Some(f) = self.#eif_fields_mut() {
+                            if let Some(f) = self.#eif_fields_mut().as_mut() {
                                 f.#ack_field = None;
                             }
-                            if let Some(w) = self.#eif_mut() {
+                            if let Some(w) = self.#eif_mut().as_mut() {
                                 w.#unset_ack_field_fn();
                                 if w.empty() {
                                     clear_eif = true;
@@ -233,7 +235,7 @@ pub fn ack_field(input: TokenStream) -> TokenStream {
                             if clear_eif {
                                 *self.#eif_mut() = None;
                                 *self.#eif_fields_mut() = None;
-                                if let Some(w) = self.eif0_mut() {
+                                if let Some(w) = self.eif0_mut().as_mut() {
                                     w.#unset_cif_enabled_fn();
                                 }
                             }
