@@ -95,6 +95,8 @@ pub mod prelude {
 pub mod command_prelude {
     pub use crate::cif0::{Cif0AckFields, Cif0AckManipulators};
     pub use crate::cif1::{Cif1AckFields, Cif1AckManipulators};
+    pub use crate::cif2::{Cif2AckFields, Cif2AckManipulators};
+    pub use crate::cif3::{Cif3AckFields, Cif3AckManipulators};
     pub use crate::{
         Ack, AckLevel, AckResponse, ActionMode, Cancellation, Command, CommandPayload, Control,
         ControlAckMode, QueryAck,

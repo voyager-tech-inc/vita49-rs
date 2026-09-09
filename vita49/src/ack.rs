@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::{
-    cif7::Cif7Opts, prelude::*, Cif0AckFields, Cif0AckManipulators, Cif1AckFields, Cif2AckFields,
-    Cif3AckFields, ControlAckMode,
+    cif7::Cif7Opts, prelude::*, Cif0AckFields, Cif0AckManipulators, Cif1AckFields,
+    Cif1AckManipulators, Cif2AckFields, Cif2AckManipulators, Cif3AckFields, Cif3AckManipulators,
+    ControlAckMode,
 };
 use deku::prelude::*;
 use std::fmt;
@@ -177,6 +178,108 @@ impl Cif0AckManipulators for Ack {
         &mut self.eif0_fields
     }
 }
+
+macro_rules! impl_cif_ack {
+    (
+        $trait:ident,
+        $wif:ident, $wif_mut:ident, $wif_fields:ident, $wif_fields_mut:ident, $cif:ident, $fields:ident,
+        $eif:ident, $eif_mut:ident, $eif_fields:ident, $eif_fields_mut:ident
+    ) => {
+        impl $trait for Ack {
+            fn wif0(&self) -> Option<&Cif0> {
+                self.wif0.as_ref()
+            }
+            fn wif0_mut(&mut self) -> &mut Option<Cif0> {
+                &mut self.wif0
+            }
+            fn wif0_fields(&self) -> Option<&Cif0AckFields> {
+                self.wif0_fields.as_ref()
+            }
+            fn wif0_fields_mut(&mut self) -> &mut Option<Cif0AckFields> {
+                &mut self.wif0_fields
+            }
+
+            fn eif0(&self) -> Option<&Cif0> {
+                self.eif0.as_ref()
+            }
+            fn eif0_mut(&mut self) -> &mut Option<Cif0> {
+                &mut self.eif0
+            }
+            fn eif0_fields(&self) -> Option<&Cif0AckFields> {
+                self.eif0_fields.as_ref()
+            }
+            fn eif0_fields_mut(&mut self) -> &mut Option<Cif0AckFields> {
+                &mut self.eif0_fields
+            }
+
+            fn $wif(&self) -> Option<&$cif> {
+                self.$wif.as_ref()
+            }
+            fn $wif_mut(&mut self) -> &mut Option<$cif> {
+                &mut self.$wif
+            }
+            fn $wif_fields(&self) -> Option<&$fields> {
+                self.$wif_fields.as_ref()
+            }
+            fn $wif_fields_mut(&mut self) -> &mut Option<$fields> {
+                &mut self.$wif_fields
+            }
+
+            fn $eif(&self) -> Option<&$cif> {
+                self.$eif.as_ref()
+            }
+            fn $eif_mut(&mut self) -> &mut Option<$cif> {
+                &mut self.$eif
+            }
+            fn $eif_fields(&self) -> Option<&$fields> {
+                self.$eif_fields.as_ref()
+            }
+            fn $eif_fields_mut(&mut self) -> &mut Option<$fields> {
+                &mut self.$eif_fields
+            }
+        }
+    };
+}
+
+impl_cif_ack!(
+    Cif1AckManipulators,
+    wif1,
+    wif1_mut,
+    wif1_fields,
+    wif1_fields_mut,
+    Cif1,
+    Cif1AckFields,
+    eif1,
+    eif1_mut,
+    eif1_fields,
+    eif1_fields_mut
+);
+impl_cif_ack!(
+    Cif2AckManipulators,
+    wif2,
+    wif2_mut,
+    wif2_fields,
+    wif2_fields_mut,
+    Cif2,
+    Cif2AckFields,
+    eif2,
+    eif2_mut,
+    eif2_fields,
+    eif2_fields_mut
+);
+impl_cif_ack!(
+    Cif3AckManipulators,
+    wif3,
+    wif3_mut,
+    wif3_fields,
+    wif3_fields_mut,
+    Cif3,
+    Cif3AckFields,
+    eif3,
+    eif3_mut,
+    eif3_fields,
+    eif3_fields_mut
+);
 
 impl fmt::Display for Ack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
