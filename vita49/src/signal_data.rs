@@ -171,26 +171,66 @@ impl SignalData {
         data: &[u8],
         endian: deku::ctx::Endian,
     ) -> Result<(), deku::DekuError> {
-        let mut final_data = std::borrow::Cow::Borrowed(data);
+        let remainder = data.len() % 4;
+        let pad_len = if remainder != 0 { 4 - remainder } else { 0 };
 
         if endian == deku::ctx::Endian::Little {
-            let mut swapped = data.to_vec();
-            for chunk in swapped.chunks_exact_mut(4) {
+            let mut padded = Vec::with_capacity(data.len() + pad_len);
+            padded.extend_from_slice(data);
+            padded.resize(data.len() + pad_len, 0u8);
+            for chunk in padded.chunks_exact_mut(4) {
                 chunk.reverse();
             }
-            final_data = std::borrow::Cow::Owned(swapped);
-        }
-
-        writer.write_bytes(final_data.as_ref())?;
-
-        // Handle zero-padding to match 32-bit words
-        let remainder = data.len() % 4;
-        if remainder != 0 {
-            let pad_len = 4 - remainder;
-            let padding = vec![0u8; pad_len];
-            writer.write_bytes(&padding)?;
+            writer.write_bytes(&padded)?;
+        } else {
+            writer.write_bytes(data)?;
+            if pad_len != 0 {
+                let padding = vec![0u8; pad_len];
+                writer.write_bytes(&padding)?;
+            }
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn little_endian_padded_payload_round_trip() {
+        // A 6-byte payload requires 2 bytes of padding to form two 32-bit words (8 bytes).
+        let raw_payload = vec![0x11, 0x22, 0x33, 0x44, 0x55, 0x66];
+
+        // Write in Little Endian
+        let mut buf = Vec::new();
+        {
+            let mut writer = Writer::new(Cursor::new(&mut buf));
+            SignalData::write_payload(&mut writer, &raw_payload, deku::ctx::Endian::Little)
+                .unwrap();
+            writer.finalize().unwrap();
+        }
+        assert_eq!(buf.len(), 8, "payload must be padded to 8 bytes (2 words)");
+
+        // Word 0 was [0x11, 0x22, 0x33, 0x44] -> in LE wire order: [0x44, 0x33, 0x22, 0x11]
+        assert_eq!(&buf[0..4], &[0x44, 0x33, 0x22, 0x11]);
+        // Word 1 was [0x55, 0x66, 0x00, 0x00] -> in LE wire order: [0x00, 0x00, 0x66, 0x55]
+        assert_eq!(
+            &buf[4..8],
+            &[0x00, 0x00, 0x66, 0x55],
+            "padding must be reversed along with data bytes in LE word"
+        );
+
+        // Read back in Little Endian
+        let mut cursor = Cursor::new(&buf);
+        let mut reader = deku::reader::Reader::new(&mut cursor);
+        let read_data =
+            SignalData::read_payload(&mut reader, 2, deku::ctx::Endian::Little).unwrap();
+
+        // Data bytes must be restored to their original positions (followed by zero padding)
+        assert_eq!(&read_data[0..6], &raw_payload[..]);
+        assert_eq!(&read_data[6..8], &[0x00, 0x00]);
     }
 }
