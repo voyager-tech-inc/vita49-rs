@@ -289,3 +289,43 @@ impl fmt::Display for Ack {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AckResponse;
+    use crate::Cif2AckManipulators;
+
+    #[test]
+    fn setting_cif1_ack_field_sets_indicator_and_enables_cif1_in_wif0() {
+        let mut ack = Ack::default();
+        let response = AckResponse::default();
+
+        // Setting a CIF1 warning field must set wif1 and enable cif1 in wif0.
+        ack.set_aux_freq(AckLevel::Warning, Some(response));
+        assert!(ack.wif0.is_some(), "wif0 must be initialized");
+        assert!(
+            ack.wif0.unwrap().cif1_enabled(),
+            "wif0 must have cif1_enabled bit set"
+        );
+        assert!(ack.wif1.is_some(), "wif1 must be initialized");
+        assert!(
+            ack.wif1.unwrap().aux_freq(),
+            "wif1 must have aux_freq bit set (not lost to a temporary copy)"
+        );
+        assert!(ack.aux_freq().is_some());
+
+        // Setting a CIF2 field when wif0 is already Some must still set cif2_enabled in wif0.
+        ack.set_cited_sid(AckLevel::Warning, Some(response));
+        assert!(
+            ack.wif0.unwrap().cif2_enabled(),
+            "wif0 must have cif2_enabled bit set even if wif0 was already Some"
+        );
+        assert!(ack.wif2.unwrap().cited_sid());
+
+        // Same checks for Error level / eif.
+        ack.set_aux_freq(AckLevel::Error, Some(response));
+        assert!(ack.eif0.unwrap().cif1_enabled());
+        assert!(ack.eif1.unwrap().aux_freq());
+    }
+}
