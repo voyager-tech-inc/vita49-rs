@@ -262,6 +262,13 @@ impl Vrt {
     /// assert!(matches!(packet.header().packet_type(), PacketType::SignalDataWithoutStreamId));
     /// ```
     pub fn set_stream_id(&mut self, stream_id: Option<u32>) {
+        if stream_id.is_none() && !self.header.packet_type().has_signal_data_payload() {
+            // Per ANSI/VITA-49.2 Rule 5.1.2-1, the Stream Identifier shall be present in all
+            // Context packets, Extension Context packets, Command packets, and Extension Command packets.
+            // Default to Some(0) to avoid omitting mandatory wire bytes and desynchronizing the stream.
+            self.stream_id = Some(0);
+            return;
+        }
         self.stream_id = stream_id;
         if self.stream_id.is_some() {
             match self.header.packet_type() {
@@ -587,5 +594,21 @@ mod tests {
             packet.set_trailer(Some(Trailer::default())),
             Err(VitaError::SignalDataOnly)
         ));
+    }
+
+    #[test]
+    fn context_packet_stream_id_none_defaults_to_some_zero() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_context_packet();
+        packet.set_stream_id(None);
+        // Rule 5.1.2-1: Context packets must include Stream ID
+        assert_eq!(packet.stream_id(), Some(0));
+        packet.update_packet_size();
+
+        // Must serialize and deserialize cleanly without wire stream corruption
+        let bytes = packet.to_bytes().unwrap();
+        let parsed = Vrt::try_from(&bytes[..]).unwrap();
+        assert_eq!(parsed.stream_id(), Some(0));
+        assert_eq!(parsed.header().packet_type(), PacketType::Context);
     }
 }
