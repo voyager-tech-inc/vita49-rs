@@ -137,7 +137,8 @@ impl SignalData {
 
     /// Gets the size of the payload in 32-bit words.
     pub fn size_words(&self) -> u16 {
-        (self.data.len() / 4) as u16
+        // Ceiling division to make sure we account for padding
+        ((self.data.len() + 3) / 4) as u16
     }
 
     /// Gets the size of the payload in bytes.
