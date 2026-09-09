@@ -4,7 +4,7 @@
 
 [package]
 name = "vita49"
-version = "1.2.0"
+version = "2.0.0"
 authors = ["The vita49-rs Authors", "John Moon <john.moon@voyagertechnologies.com>"]
 edition = "2021"
 rust-version = "1.71.0"

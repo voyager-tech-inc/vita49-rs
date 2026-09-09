@@ -10,6 +10,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-09
+
+### Added
+
+- Add missing CIF manipulators
+- Add missing accessor macro for `ephemeris_ref_id`
+
+### Fixed
+
+- [**breaking**] Fix logic inversion bug on packet type helpers
+- Return parsing errors rather than panics
+- Fix off-by-one bug in Window Type subfield
+- Mask OUI value in setter to avoid clobbering upper bits
+- Account for padding in size_words()
+- Remove ActionMode::Reserved variant
+- Fix undercounting bug in ACK packet size calculation
+- Fix incorrect attribute counting in CIF7
+- Use as_mut() to modify value instead of temp value
+- Fix incorrect CIF7 field setter in macro
+- Drop async tag list if length changes
+- Swap padding bytes as well when using little-endian
+- Set stream ID `None` to 0 for context/command packets
+- Fix Averaging Type subfield representation
+- Update nats control examples url
+
 ## [1.2.0] - 2026-07-22
 
 ### Added
@@ -134,6 +159,7 @@ change accordingly.
 - Initial crate release.
 - Basic documentation, test, and examples.
 
+[2.0.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/2.0.0
 [1.2.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.2.0
 [1.1.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.1.0
 [1.0.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.0.0
