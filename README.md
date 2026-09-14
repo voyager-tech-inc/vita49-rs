@@ -318,12 +318,12 @@ it'd be better to implement a fully-featured struct. Using these
 fields means you might need to do some bit masking/shifting yourself.
 These fields are marked with a comment: `// TODO: add full support`.
 
-No support means the crate will `panic!()` if the field is encountered.
-This is usually because the field can be variable length and, until
-support for the field is added, we can't guarantee the packet will
-be parsed correctly. These fields are marked with a macro:
-`todo_cif_field!()`. The getters/setters associated with these
-fields are marked with a comment: `// TODO: add basic support`.
+No support means the crate will refuse to parse a packet that selects
+the field, returning an error. This is usually because the field can be
+variable length and, until support for the field is added, we can't
+guarantee the packet will be parsed correctly. These fields are marked
+with a macro: `todo_cif_field!()`. The getters/setters associated with
+these fields are marked with a comment: `// TODO: add basic support`.
 
 ## Debugging
 

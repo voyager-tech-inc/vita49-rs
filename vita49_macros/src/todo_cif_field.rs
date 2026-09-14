@@ -42,12 +42,17 @@ pub fn todo_cif_field(input: TokenStream) -> TokenStream {
 
     let set = format_ident!("set_{}", cif_field);
     let unset = format_ident!("unset_{}", cif_field);
+    let mask = format_ident!("UNSUPPORTED_{}", cif_field.to_string().to_uppercase());
 
+    let mask_doc = format!("Bit mask for the unimplemented {cif_field} CIF field");
     let get_doc = format!("Panics if the {cif_field} CIF field bit is set, false otherwise");
     let set_doc = format!("Sets the {cif_field} CIF field bit");
     let unset_doc = format!("Unsets the {cif_field} CIF field bit");
 
     quote! {
+        #[doc = #mask_doc]
+        const #mask: u32 = 1 << #bit;
+
         #[doc = #get_doc]
         pub fn #cif_field(&self) -> bool {
             if self.0 & (1 << #bit) != 0 {

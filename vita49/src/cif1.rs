@@ -27,9 +27,19 @@ use vita49_macros::{
 )]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Cif1(u32);
+pub struct Cif1(#[deku(assert = "(*field_0 & Cif1::UNSUPPORTED) == 0")] u32);
 
 impl Cif1 {
+    /// Bits selecting fields this crate cannot parse yet.
+    ///
+    /// Each term comes from the corresponding `todo_cif_field!` below, so the
+    /// bit positions cannot drift apart. Add a term here whenever a new
+    /// `todo_cif_field!` is introduced.
+    const UNSUPPORTED: u32 = Self::UNSUPPORTED_THREE_D_POINTING_VECTOR_STRUCT
+        | Self::UNSUPPORTED_ARRAY_OF_CIFS
+        | Self::UNSUPPORTED_SECTOR_SCAN
+        | Self::UNSUPPORTED_INDEX_LIST;
+
     cif_field!(phase_offset, 31);
     cif_field!(polarization, 30);
     cif_field!(three_d_pointing_vector, 29);
@@ -306,7 +316,10 @@ impl fmt::Display for Cif1 {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::prelude::*;
+    use deku::ctx::Endian;
+    use std::io::Cursor;
 
     #[test]
     fn setting_cif1_radix_field_does_not_enable_cif7() {
@@ -333,5 +346,62 @@ mod tests {
         context.set_aux_freq_hz_attributes(Some(vec![10e6, 12e6]));
         assert!(Cif0Manipulators::cif0(context).cif1_enabled());
         assert!(Cif0Manipulators::cif0(context).field_attributes_enabled());
+    }
+
+    /// Parse a raw CIF1 word off the wire.
+    fn read_cif1(raw: u32) -> Result<Cif1, DekuError> {
+        let bytes = raw.to_be_bytes();
+        let mut cursor = Cursor::new(&bytes[..]);
+        let mut reader = Reader::new(&mut cursor);
+        Cif1::from_reader_with_ctx(&mut reader, Endian::Big)
+    }
+
+    #[test]
+    fn unsupported_bits_are_rejected_at_parse() {
+        for bit in [28, 11, 9, 7] {
+            assert!(
+                read_cif1(1 << bit).is_err(),
+                "CIF1 bit {bit} selects an unimplemented field and must not parse"
+            );
+        }
+    }
+
+    #[test]
+    fn supported_bits_still_parse() {
+        for bit in [31, 30, 29, 27, 10, 6, 1] {
+            assert!(
+                read_cif1(1 << bit).is_ok(),
+                "CIF1 bit {bit} is supported and must still parse"
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_mask_covers_exactly_the_todo_fields() {
+        assert_eq!(
+            Cif1::UNSUPPORTED,
+            (1 << 28) | (1 << 11) | (1 << 9) | (1 << 7)
+        );
+    }
+
+    #[test]
+    fn unsupported_field_in_a_whole_packet_is_an_error_not_a_panic() {
+        let mut packet = Vrt::new_context_packet();
+        let context = packet.payload_mut().context_mut().unwrap();
+        context.set_spectrum(Some(Spectrum::new()));
+        packet.update_packet_size();
+        let bytes = packet.to_bytes().unwrap();
+
+        // Find the CIF1 word (only the spectrum bit set) and additionally set
+        // the sector scan bit, whose field this crate cannot parse.
+        let mut patched = bytes.clone();
+        let cif1_offset = (0..bytes.len() - 3)
+            .step_by(4)
+            .find(|&i| u32::from_be_bytes(bytes[i..i + 4].try_into().unwrap()) == 1 << 10)
+            .expect("CIF1 word not found");
+        patched[cif1_offset..cif1_offset + 4]
+            .copy_from_slice(&((1u32 << 10) | (1 << 9)).to_be_bytes());
+
+        assert!(Vrt::try_from(patched.as_ref()).is_err());
     }
 }

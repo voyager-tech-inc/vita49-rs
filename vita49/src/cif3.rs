@@ -20,9 +20,16 @@ use vita49_macros::{
 )]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Cif3(u32);
+pub struct Cif3(#[deku(assert = "(*field_0 & Cif3::UNSUPPORTED) == 0")] u32);
 
 impl Cif3 {
+    /// Bits selecting fields this crate cannot parse yet.
+    ///
+    /// Each term comes from the corresponding `todo_cif_field!` below, so the
+    /// bit positions cannot drift apart. Add a term here whenever a new
+    /// `todo_cif_field!` is introduced.
+    const UNSUPPORTED: u32 = Self::UNSUPPORTED_AGE | Self::UNSUPPORTED_SHELF_LIFE;
+
     cif_field!(timestamp_details, 31);
     cif_field!(timestamp_skew, 30);
     // Bits 28-29 are reserved
@@ -203,4 +210,44 @@ pub trait Cif3AckManipulators {
     ack_field!(3, sea_and_swell_state);
     ack_field!(3, tropospheric_state);
     ack_field!(3, network_id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use deku::ctx::Endian;
+    use std::io::Cursor;
+
+    /// Parse a raw CIF3 word off the wire.
+    fn read_cif3(raw: u32) -> Result<Cif3, DekuError> {
+        let bytes = raw.to_be_bytes();
+        let mut cursor = Cursor::new(&bytes[..]);
+        let mut reader = Reader::new(&mut cursor);
+        Cif3::from_reader_with_ctx(&mut reader, Endian::Big)
+    }
+
+    #[test]
+    fn unsupported_bits_are_rejected_at_parse() {
+        for bit in [17, 16] {
+            assert!(
+                read_cif3(1 << bit).is_err(),
+                "CIF3 bit {bit} selects an unimplemented field and must not parse"
+            );
+        }
+    }
+
+    #[test]
+    fn supported_bits_still_parse() {
+        for bit in [31, 30, 26, 20, 7, 3] {
+            assert!(
+                read_cif3(1 << bit).is_ok(),
+                "CIF3 bit {bit} is supported and must still parse"
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_mask_covers_exactly_the_todo_fields() {
+        assert_eq!(Cif3::UNSUPPORTED, (1 << 17) | (1 << 16));
+    }
 }
