@@ -8,6 +8,11 @@ use std::io::{Seek, Write};
 
 use crate::packet_header::PacketHeader;
 use crate::payload::Payload;
+use crate::VitaError;
+
+/// The VITA 49 packet size field is 16 bits wide and counts 32-bit words, so
+/// no payload can be longer than this many words (just under 256 KiB).
+const MAX_PAYLOAD_WORDS: u16 = u16::MAX;
 
 /// Base signal data structure.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, DekuRead, DekuWrite)]
@@ -119,6 +124,11 @@ impl SignalData {
     /// Set the packet payload to some raw bytes.
     /// Accepts either a `Vec<u8>` (zero-copy) or a `&[u8]` slice (allocates).
     ///
+    /// # Errors
+    /// A payload longer than `u16::MAX` 32-bit words cannot be described by
+    /// the 16-bit VITA 49 packet size field, so it is rejected rather than
+    /// silently truncated.
+    ///
     /// # Example
     /// ```
     /// # use std::io;
@@ -126,18 +136,27 @@ impl SignalData {
     /// # fn main() -> Result<(), VitaError> {
     /// let mut packet = Vrt::new_signal_data_packet();
     /// let sig_data = packet.payload_mut().signal_data_mut()?;
-    /// sig_data.set_payload(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// sig_data.set_payload(&[1, 2, 3, 4, 5, 6, 7, 8])?;
     /// assert_eq!(packet.signal_payload()?, &[1, 2, 3, 4, 5, 6, 7, 8]);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set_payload(&mut self, bytes: impl Into<Vec<u8>>) {
-        self.data = bytes.into()
+    pub fn set_payload(&mut self, bytes: impl Into<Vec<u8>>) -> Result<(), VitaError> {
+        let data = bytes.into();
+        if data.len() > MAX_PAYLOAD_WORDS as usize * 4 {
+            return Err(VitaError::OutOfRange);
+        }
+        self.data = data;
+        Ok(())
     }
 
     /// Gets the size of the payload in 32-bit words.
     pub fn size_words(&self) -> u16 {
         // Ceiling division to make sure we account for padding
+        //
+        // Cannot truncate: `set_payload` rejects anything longer, and the
+        // reader is bounded by the 16-bit packet size field it read from.
+        debug_assert!((self.data.len() + 3) / 4 <= MAX_PAYLOAD_WORDS as usize);
         ((self.data.len() + 3) / 4) as u16
     }
 
@@ -197,6 +216,28 @@ impl SignalData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn payload_at_the_size_limit_is_accepted() {
+        let mut sig_data = SignalData::new();
+        sig_data
+            .set_payload(vec![0u8; MAX_PAYLOAD_WORDS as usize * 4])
+            .unwrap();
+        assert_eq!(sig_data.size_words(), MAX_PAYLOAD_WORDS);
+    }
+
+    #[test]
+    fn payload_past_the_size_limit_is_rejected() {
+        let mut sig_data = SignalData::new();
+        // One byte past the limit still rounds up to an extra word.
+        let bytes = vec![0u8; MAX_PAYLOAD_WORDS as usize * 4 + 1];
+        assert!(matches!(
+            sig_data.set_payload(bytes),
+            Err(VitaError::OutOfRange)
+        ));
+        // The oversized payload must not have been stored.
+        assert_eq!(sig_data.payload_size_bytes(), 0);
+    }
     use std::io::Cursor;
 
     #[test]

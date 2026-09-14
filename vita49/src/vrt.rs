@@ -486,6 +486,9 @@ impl Vrt {
     /// This function should only be used with a signal data packet type. Use
     /// of this function on other packet types will return an error.
     ///
+    /// An error is also returned when the payload would not fit alongside the
+    /// packet prologue and trailer in the 16-bit VITA 49 packet size field.
+    ///
     /// # Example
     /// ```
     /// # use std::io;
@@ -498,8 +501,16 @@ impl Vrt {
     /// # }
     /// ```
     pub fn set_signal_payload(&mut self, payload: impl Into<Vec<u8>>) -> Result<(), VitaError> {
+        let payload = payload.into();
+        // The packet size field covers the prologue and trailer as well as the
+        // payload, so how much payload fits depends on which optional words are
+        // present.
+        let room_words = u16::MAX - self.header.min_packet_size_words();
+        if payload.len() > room_words as usize * 4 {
+            return Err(VitaError::OutOfRange);
+        }
         let sig_data = self.payload.signal_data_mut()?;
-        sig_data.set_payload(payload);
+        sig_data.set_payload(payload)?;
         self.update_packet_size();
         Ok(())
     }
@@ -548,31 +559,33 @@ impl Vrt {
     /// // ... write the packet
     /// ```
     pub fn update_packet_size(&mut self) {
-        let mut packet_size_words = 1;
-        if self.header.stream_id_included() {
-            packet_size_words += 1;
-        }
-        if self.header.class_id_included() {
-            packet_size_words += 2;
-        }
-        if self.header.integer_timestamp_included() {
-            packet_size_words += 1;
-        }
-        if self.header.fractional_timestamp_included() {
-            packet_size_words += 2;
-        }
-        if self.header.trailer_included() {
-            packet_size_words += 1;
-        }
-
-        packet_size_words += self.payload.size_words();
-
+        let packet_size_words = self.header.min_packet_size_words() + self.payload.size_words();
         self.header.set_packet_size(packet_size_words);
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn oversized_signal_payload_is_rejected_rather_than_wrapping() {
+        use crate::prelude::*;
+
+        let mut packet = Vrt::new_signal_data_packet();
+        let room_words = (u16::MAX - packet.header().min_packet_size_words()) as usize;
+
+        assert!(matches!(
+            packet.set_signal_payload(vec![0u8; room_words * 4 + 1]),
+            Err(VitaError::OutOfRange)
+        ));
+
+        // One word under the ceiling must still be accepted, and the size
+        // field must hold the true total rather than a wrapped value.
+        packet
+            .set_signal_payload(vec![0u8; room_words * 4])
+            .unwrap();
+        assert_eq!(packet.header().packet_size(), u16::MAX);
+    }
 
     #[test]
     fn trailer_header_bit_toggle() {
