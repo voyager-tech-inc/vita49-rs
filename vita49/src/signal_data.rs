@@ -119,6 +119,17 @@ impl SignalData {
     /// Set the packet payload to some raw bytes.
     /// Accepts either a `Vec<u8>` (zero-copy) or a `&[u8]` slice (allocates).
     ///
+    /// # Warning
+    ///
+    /// This setter does not check for a valid data length and does not update
+    /// the packet's size field. The VITA 49 packet size is a 16-bit word count,
+    /// so a payload larger than 262,140 bytes (65,535 words) makes
+    /// [`size_words`](Self::size_words) wrap resultnig in an inaccurate packet
+    /// length.
+    ///
+    /// Prefer [`Vrt::set_signal_payload`](crate::Vrt::set_signal_payload), which
+    /// rejects a payload that will not fit and keeps the header in sync.
+    ///
     /// # Example
     /// ```
     /// # use std::io;
