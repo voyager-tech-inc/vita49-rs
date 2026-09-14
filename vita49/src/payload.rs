@@ -98,7 +98,7 @@ impl Payload {
     /// use vita49::prelude::*;
     /// let mut packet = Vrt::new_signal_data_packet();
     /// let signal_data_mut = packet.payload_mut().signal_data_mut().unwrap();
-    /// signal_data_mut.set_payload(&[1, 2, 3, 4]);
+    /// signal_data_mut.set_payload(&[1, 2, 3, 4]).unwrap();
     /// assert_eq!(signal_data_mut.payload_size_bytes(), 4);
     /// ```
     pub fn signal_data_mut(&mut self) -> Result<&mut SignalData, VitaError> {

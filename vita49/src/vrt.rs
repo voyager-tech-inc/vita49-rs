@@ -510,7 +510,7 @@ impl Vrt {
             return Err(VitaError::OutOfRange);
         }
         let sig_data = self.payload.signal_data_mut()?;
-        sig_data.set_payload(payload);
+        sig_data.set_payload(payload)?;
         self.update_packet_size();
         Ok(())
     }
