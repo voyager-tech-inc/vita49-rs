@@ -31,6 +31,7 @@ pub enum IdFormat {
 /// Control action mode.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum ActionMode {
     /// No action should be taken.
     NoAction,
@@ -44,6 +45,7 @@ pub enum ActionMode {
 /// Timing control mode.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum TimingControlMode {
     /// Ignore the timestamp.
     IgnoreTimestamp,

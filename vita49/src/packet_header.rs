@@ -31,6 +31,7 @@ pub struct PacketHeader {
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, DekuRead, DekuWrite)]
 #[deku(id_type = "u8", endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum PacketType {
     /// Signal data packet without a stream ID.
     #[deku(id = 0x0)]

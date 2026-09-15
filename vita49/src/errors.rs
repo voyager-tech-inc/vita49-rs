@@ -9,6 +9,7 @@ use thiserror::Error;
 
 /// Generic `vita49` crate error enumeration.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum VitaError {
     /// Indicates a payload that requires an even number of 32-bit words
     /// was given something else.

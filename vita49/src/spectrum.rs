@@ -71,6 +71,7 @@ macro_rules! size_of_fields {
 /// Type of spectral data being presented.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SpectrumType {
     /// Default "no setting".
     Default = 0,
@@ -236,6 +237,7 @@ impl From<AveragingType> for u8 {
 /// Interpretation options for the window time delta field.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum WindowTimeDeltaInterpretation {
     /// Overlap is not controlled.
     OverlapNotControlled = 0,
@@ -280,6 +282,7 @@ impl From<WindowTimeDeltaInterpretation> for u8 {
 /// with a 1.00 alpha coefficient).
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum WindowType {
     /// Rectangle windowing.
     Rectangle = 0,
