@@ -82,8 +82,9 @@ pub enum SpectrumType {
     Polar = 3,
     /// Magnitude.
     Magnitude = 4,
-    /// Reserved for future expansion.
-    Reserved,
+    /// Reserved for future expansion, carrying the raw value so it
+    /// round-trips unchanged.
+    Reserved(u8),
     /// User defined type.
     UserDefined(u8),
 }
@@ -96,7 +97,7 @@ impl From<u8> for SpectrumType {
             2 => SpectrumType::Cartesian,
             3 => SpectrumType::Polar,
             4 => SpectrumType::Magnitude,
-            5..=127 => SpectrumType::Reserved,
+            5..=127 => SpectrumType::Reserved(value),
             128..=255 => SpectrumType::UserDefined(value),
         }
     }
@@ -111,7 +112,7 @@ impl From<SpectrumType> for u8 {
             SpectrumType::Polar => 3,
             SpectrumType::Magnitude => 4,
             SpectrumType::UserDefined(v) => v,
-            SpectrumType::Reserved => panic!("can't convert reserved variant"),
+            SpectrumType::Reserved(v) => v,
         }
     }
 }
@@ -245,8 +246,9 @@ pub enum WindowTimeDeltaInterpretation {
     Samples = 2,
     /// Time.
     Time = 3,
-    /// Reserved for future expansion.
-    Reserved,
+    /// Reserved for future expansion, carrying the raw value so it
+    /// round-trips unchanged.
+    Reserved(u8),
 }
 
 impl From<u8> for WindowTimeDeltaInterpretation {
@@ -256,7 +258,7 @@ impl From<u8> for WindowTimeDeltaInterpretation {
             1 => WindowTimeDeltaInterpretation::PercentOverlap,
             2 => WindowTimeDeltaInterpretation::Samples,
             3 => WindowTimeDeltaInterpretation::Time,
-            _ => WindowTimeDeltaInterpretation::Reserved,
+            v => WindowTimeDeltaInterpretation::Reserved(v),
         }
     }
 }
@@ -268,7 +270,7 @@ impl From<WindowTimeDeltaInterpretation> for u8 {
             WindowTimeDeltaInterpretation::PercentOverlap => 1,
             WindowTimeDeltaInterpretation::Samples => 2,
             WindowTimeDeltaInterpretation::Time => 3,
-            WindowTimeDeltaInterpretation::Reserved => panic!("can't convert reserved variant"),
+            WindowTimeDeltaInterpretation::Reserved(v) => v,
         }
     }
 }
@@ -369,8 +371,9 @@ pub enum WindowType {
     BlackmanHarris74Db4Sample = 42,
     /// Kaiser-Bessel windowing (4-sample, 3.00 "alpha").
     KaiserBessel4Sample300 = 43,
-    /// Reserved for future expansion.
-    Reserved,
+    /// Reserved for future expansion, carrying the raw value so it
+    /// round-trips unchanged.
+    Reserved(u8),
     /// User-defined windowing scheme.
     Other(u8),
 }
@@ -422,7 +425,7 @@ impl From<u8> for WindowType {
             41 => WindowType::BlackmanHarris61Db3Sample,
             42 => WindowType::BlackmanHarris74Db4Sample,
             43 => WindowType::KaiserBessel4Sample300,
-            44..=99 => WindowType::Reserved,
+            44..=99 => WindowType::Reserved(value),
             100..=255 => WindowType::Other(value),
         }
     }
@@ -476,7 +479,7 @@ impl From<WindowType> for u8 {
             WindowType::BlackmanHarris74Db4Sample => 42,
             WindowType::KaiserBessel4Sample300 => 43,
             WindowType::Other(v) => v,
-            WindowType::Reserved => panic!("can't convert reserved variant"),
+            WindowType::Reserved(v) => v,
         }
     }
 }
@@ -567,7 +570,7 @@ impl Spectrum {
                 }
                 self.spectrum_type = (self.spectrum_type & !(0xFF)) | (v as u32);
             }
-            SpectrumType::Reserved => return Err(VitaError::ReservedField),
+            SpectrumType::Reserved(_) => return Err(VitaError::ReservedField),
             _ => {
                 self.spectrum_type =
                     (self.spectrum_type & !(0xFF)) | (u8::from(spectrum_type) as u32)
@@ -609,7 +612,7 @@ impl Spectrum {
         window_time_delta_interpretation: WindowTimeDeltaInterpretation,
     ) -> Result<(), VitaError> {
         match window_time_delta_interpretation {
-            WindowTimeDeltaInterpretation::Reserved => return Err(VitaError::ReservedField),
+            WindowTimeDeltaInterpretation::Reserved(_) => return Err(VitaError::ReservedField),
             _ => {
                 let v = u8::from(window_time_delta_interpretation) as u32;
                 self.spectrum_type = (self.spectrum_type & !(0b1111 << 16)) | (v << 16)
@@ -633,7 +636,7 @@ impl Spectrum {
     // # Errors
     /// You may not set this field to the [`WindowType::Reserved`] variant.
     pub fn set_window_type(&mut self, window_type: WindowType) -> Result<(), VitaError> {
-        if matches!(window_type, WindowType::Reserved) {
+        if matches!(window_type, WindowType::Reserved(_)) {
             return Err(VitaError::ReservedField);
         }
         self.window_type = u8::from(window_type) as u32;
@@ -836,6 +839,56 @@ mod tests {
         let invalid = AveragingType(0b0100_0000);
         assert!(matches!(
             spec.set_averaging_type(invalid),
+            Err(VitaError::ReservedField)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod reserved_round_trip_tests {
+    use super::*;
+
+    #[test]
+    fn spectrum_type_reserved_values_round_trip() {
+        for raw in 5..=127u8 {
+            let parsed = SpectrumType::from(raw);
+            assert_eq!(parsed, SpectrumType::Reserved(raw));
+            assert_eq!(u8::from(parsed), raw);
+        }
+    }
+
+    #[test]
+    fn window_time_delta_interpretation_reserved_values_round_trip() {
+        for raw in 4..=15u8 {
+            let parsed = WindowTimeDeltaInterpretation::from(raw);
+            assert_eq!(parsed, WindowTimeDeltaInterpretation::Reserved(raw));
+            assert_eq!(u8::from(parsed), raw);
+        }
+    }
+
+    #[test]
+    fn window_type_reserved_values_round_trip() {
+        for raw in 44..=99u8 {
+            let parsed = WindowType::from(raw);
+            assert_eq!(parsed, WindowType::Reserved(raw));
+            assert_eq!(u8::from(parsed), raw);
+        }
+    }
+
+    #[test]
+    fn setting_a_reserved_value_is_still_refused() {
+        let mut spectrum = Spectrum::new();
+        assert!(matches!(
+            spectrum.set_spectrum_type(SpectrumType::Reserved(5)),
+            Err(VitaError::ReservedField)
+        ));
+        assert!(matches!(
+            spectrum.set_window_type(WindowType::Reserved(44)),
+            Err(VitaError::ReservedField)
+        ));
+        assert!(matches!(
+            spectrum
+                .set_window_time_delta_interpretation(WindowTimeDeltaInterpretation::Reserved(4)),
             Err(VitaError::ReservedField)
         ));
     }
