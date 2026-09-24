@@ -19,6 +19,10 @@ pub enum VitaError {
     /// data packets is executed on something else.
     #[error("function can only run on signal data packets")]
     SignalDataOnly,
+    /// Error given when a function that can only operate on extension
+    /// data packets is executed on something else.
+    #[error("function can only run on extension data packets")]
+    ExtensionDataOnly,
     /// Error given when a function that can only operate on context
     /// packets is executed on something else.
     #[error("function can only run on context packets")]

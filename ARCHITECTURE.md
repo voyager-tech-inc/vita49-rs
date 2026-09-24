@@ -97,6 +97,7 @@ the different payload types (wrapping the underlying structure):
 From [`payload.rs`](vita49/src/payload.rs):
 ```rust
 #[deku(ctx = "packet_header: &PacketHeader", id = "packet_header.packet_type()")]
+#[non_exhaustive]
 pub enum Payload {
     /// Payload for a context packet.
     #[deku(id = "PacketType::Context | PacketType::ExtensionContext")]
@@ -104,9 +105,12 @@ pub enum Payload {
     /// Payload for a command packet.
     #[deku(id = "PacketType::Command | PacketType::ExtensionCommand")]
     Command(Command),
-    /// Payload for signal data.
-    #[deku(id_pat = "_")]
+    /// Payload for a signal data packet (types 0 and 1).
+    #[deku(id = "PacketType::SignalData | PacketType::SignalDataWithoutStreamId")]
     SignalData(#[deku(ctx = "packet_header")] SignalData),
+    /// Payload for an extension data packet (types 2 and 3).
+    #[deku(id = "PacketType::ExtensionData | PacketType::ExtensionDataWithoutStreamId")]
+    ExtensionData(Vec<u8>),
 }
 ```
 
@@ -117,7 +121,9 @@ When parsing a packet, Deku will check the packet header for the
 packet type and match the payload variant accordingly. The underlying
 structure implementations are defined in [`context.rs`](vita49/src/context.rs),
 [`command.rs`](vita49/src/command.rs), and [`signal_data.rs`](vita49/src/signal_data.rs)
-respectively.
+respectively. Extension data payloads are application-defined, so they are plain
+bytes that reuse the signal data wire format. The packet's class identifier says
+which application format they follow.
 
 The end-user is then expected to "unwrap" the payload to whatever type
 of packet is found. So, if the user checks the packet header and finds a

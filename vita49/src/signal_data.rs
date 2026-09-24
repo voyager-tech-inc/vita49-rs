@@ -209,12 +209,7 @@ impl SignalData {
 
     /// Gets the size of the payload in 32-bit words.
     pub fn size_words(&self) -> u16 {
-        // Ceiling division to make sure we account for padding
-        //
-        // Cannot truncate: `set_payload` rejects anything longer, and the
-        // reader is bounded by the 16-bit packet size field it read from.
-        debug_assert!((self.data.len() + 3) / 4 <= MAX_PAYLOAD_WORDS as usize);
-        ((self.data.len() + 3) / 4) as u16
+        Self::size_words_for(self.data.len())
     }
 
     /// Gets the size of the payload in bytes.
@@ -222,7 +217,20 @@ impl SignalData {
         self.data.len()
     }
 
-    fn read_payload<R: std::io::Read + std::io::Seek>(
+    /// Gets the size of a `len`-byte raw payload in 32-bit words. Shared with
+    /// extension data payloads, which use the same wire layout.
+    pub(crate) fn size_words_for(len: usize) -> u16 {
+        // Ceiling division to make sure we account for padding
+        //
+        // Cannot truncate: `set_payload` rejects anything longer, and the
+        // reader is bounded by the 16-bit packet size field it read from.
+        debug_assert!((len + 3) / 4 <= MAX_PAYLOAD_WORDS as usize);
+        ((len + 3) / 4) as u16
+    }
+
+    /// Reads `words` 32-bit words of raw payload. Shared with extension data
+    /// payloads, which use the same wire layout.
+    pub(crate) fn read_payload<R: std::io::Read + std::io::Seek>(
         reader: &mut deku::reader::Reader<R>,
         words: usize,
         endian: deku::ctx::Endian,
@@ -242,7 +250,9 @@ impl SignalData {
         Ok(data)
     }
 
-    fn write_payload<W: Write + Seek>(
+    /// Writes a raw payload padded to whole 32-bit words. Shared with
+    /// extension data payloads, which use the same wire layout.
+    pub(crate) fn write_payload<W: Write + Seek>(
         writer: &mut Writer<W>,
         data: &[u8],
         endian: deku::ctx::Endian,
@@ -295,6 +305,7 @@ mod tests {
         // The oversized payload must not have been stored.
         assert_eq!(sig_data.payload_size_bytes(), 0);
     }
+
     use std::io::Cursor;
 
     #[test]
