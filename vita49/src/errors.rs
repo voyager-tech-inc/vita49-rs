@@ -62,6 +62,14 @@ pub enum VitaError {
     /// Error given when attempting to use an out-of-range value.
     #[error("out of range")]
     OutOfRange,
+    /// Error given when a packet, or a payload on its own, would need more
+    /// 32-bit words than the 16-bit VITA 49 packet size field can state.
+    #[error("needs {words} 32-bit words, more than the packet size field's {max}", max = u16::MAX)]
+    PacketTooLarge {
+        /// Words needed: the whole packet's from a [`crate::Vrt`] method, the
+        /// payload's from a [`crate::SignalData`] method.
+        words: usize,
+    },
     /// Error given when trying to set a reserved value.
     #[error("attempted to set reserved field")]
     ReservedField,

@@ -35,7 +35,7 @@ fn create_control_message(
         Timestamp::now().as_nanosecond() - (secs_since_epoch as f64 * 1e12) as i128;
 
     let mut control_packet = Vrt::new_control_packet();
-    control_packet.set_stream_id(stream_id);
+    control_packet.set_stream_id(stream_id).unwrap();
     control_packet
         .set_integer_timestamp(Some(secs_since_epoch), Tsi::Utc)
         .unwrap();
@@ -60,7 +60,7 @@ fn create_control_message(
     control.set_rf_ref_freq_hz(tune_freq_hz);
     control.set_bandwidth_hz(bandwidth_hz);
 
-    control_packet.update_packet_size();
+    control_packet.update_packet_size().unwrap();
     control_packet
 }
 

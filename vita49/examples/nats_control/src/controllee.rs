@@ -109,7 +109,7 @@ impl Sdr {
 
         // Mirror some of the header values from the command packet to make
         // sure the controller knows which command we're replying to.
-        reply.set_stream_id(packet.stream_id());
+        reply.set_stream_id(packet.stream_id()).unwrap();
 
         let ack = reply.payload_mut().command_mut().unwrap();
         let mut cam = command.cam();
@@ -143,7 +143,7 @@ impl Sdr {
             }
             _ => unimplemented!(),
         }
-        reply.update_packet_size();
+        reply.update_packet_size().unwrap();
         Some(reply)
     }
 }

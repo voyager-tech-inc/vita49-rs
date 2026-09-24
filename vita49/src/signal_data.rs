@@ -156,8 +156,8 @@ impl SignalData {
     ///
     /// # Errors
     /// A payload longer than `u16::MAX` 32-bit words cannot be described by
-    /// the 16-bit VITA 49 packet size field, so it is rejected rather than
-    /// silently truncated.
+    /// the 16-bit VITA 49 packet size field, so it returns
+    /// [`VitaError::PacketTooLarge`] with the payload's word count.
     ///
     /// # Example
     /// ```
@@ -173,8 +173,9 @@ impl SignalData {
     /// ```
     pub fn set_payload(&mut self, bytes: impl Into<Vec<u8>>) -> Result<(), VitaError> {
         let data = bytes.into();
-        if data.len() > MAX_PAYLOAD_WORDS as usize * 4 {
-            return Err(VitaError::OutOfRange);
+        let words = Self::size_words_for(data.len());
+        if words > MAX_PAYLOAD_WORDS as usize {
+            return Err(VitaError::PacketTooLarge { words });
         }
         self.data = data;
         Ok(())
@@ -198,7 +199,7 @@ impl SignalData {
     /// let sig_data = packet.payload_mut().signal_data_mut()?;
     /// sig_data.resize_payload(8);
     /// sig_data.payload_mut().copy_from_slice(&[5, 6, 7, 8, 9, 10, 11, 12]);
-    /// packet.update_packet_size();
+    /// packet.update_packet_size()?;
     /// assert_eq!(packet.signal_payload()?, &[5, 6, 7, 8, 9, 10, 11, 12]);
     /// # Ok(())
     /// # }
@@ -208,13 +209,20 @@ impl SignalData {
     }
 
     /// Gets the size of the payload in 32-bit words.
-    pub fn size_words(&self) -> u16 {
-        // Ceiling division to make sure we account for padding
-        //
-        // Cannot truncate: `set_payload` rejects anything longer, and the
-        // reader is bounded by the 16-bit packet size field it read from.
-        debug_assert!((self.data.len() + 3) / 4 <= MAX_PAYLOAD_WORDS as usize);
-        ((self.data.len() + 3) / 4) as u16
+    ///
+    /// This can exceed `u16::MAX` for a payload built with [`Self::from_owned`],
+    /// [`Self::from_bytes`] or [`Self::resize_payload`], and
+    /// [`Vrt::update_packet_size`](crate::Vrt::update_packet_size) then returns
+    /// [`VitaError::PacketTooLarge`].
+    pub fn size_words(&self) -> usize {
+        Self::size_words_for(self.data.len())
+    }
+
+    /// Gets the size of a `len`-byte payload in 32-bit words, counting the
+    /// padding that rounds it up to a whole word.
+    pub(crate) fn size_words_for(len: usize) -> usize {
+        // `usize::div_ceil` needs Rust 1.73, past this crate's MSRV.
+        len / 4 + usize::from(len % 4 != 0)
     }
 
     /// Gets the size of the payload in bytes.
@@ -280,7 +288,7 @@ mod tests {
         sig_data
             .set_payload(vec![0u8; MAX_PAYLOAD_WORDS as usize * 4])
             .unwrap();
-        assert_eq!(sig_data.size_words(), MAX_PAYLOAD_WORDS);
+        assert_eq!(sig_data.size_words(), usize::from(MAX_PAYLOAD_WORDS));
     }
 
     #[test]
@@ -290,7 +298,7 @@ mod tests {
         let bytes = vec![0u8; MAX_PAYLOAD_WORDS as usize * 4 + 1];
         assert!(matches!(
             sig_data.set_payload(bytes),
-            Err(VitaError::OutOfRange)
+            Err(VitaError::PacketTooLarge { words }) if words == usize::from(MAX_PAYLOAD_WORDS) + 1
         ));
         // The oversized payload must not have been stored.
         assert_eq!(sig_data.payload_size_bytes(), 0);
