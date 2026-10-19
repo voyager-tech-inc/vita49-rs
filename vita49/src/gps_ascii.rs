@@ -44,12 +44,20 @@ use crate::VitaError;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GpsAscii {
     w1: u32,
+    #[deku(assert = "*num_words <= GpsAscii::MAX_ASCII_WORDS")]
     num_words: u32,
     #[deku(count = "num_words")]
     ascii: Vec<u32>,
 }
 
 impl GpsAscii {
+    /// The most ASCII words a GPS ASCII field can have. The packet size field counts at most
+    /// `u16::MAX` words, and the OUI and word count take two of them.
+    ///
+    /// A received `num_words` is checked against this before it sizes the sentence buffer, so a
+    /// short malformed packet can't request a multi-gigabyte allocation.
+    pub const MAX_ASCII_WORDS: u32 = u16::MAX as u32 - 2;
+
     /// Gets the size of the ASCII GPS field in 32-bit words.
     pub fn size_words(&self) -> u16 {
         (((std::mem::size_of_val(&self.w1) + std::mem::size_of_val(&self.num_words))
@@ -216,6 +224,29 @@ mod tests {
     fn non_ascii_sentence_panics() {
         // Rule 9.4.7-4: the field carries complete ASCII sentences only.
         GpsAscii::default().set_sentences("café");
+    }
+
+    #[test]
+    fn oversized_word_count_is_refused_before_allocating() {
+        // Word 2 claims u32::MAX words with none following. Without the check, reading it
+        // requests a 16 GiB buffer and aborts the process.
+        let bytes = [0x00, 0x0A, 0x1B, 0x2C, 0xFF, 0xFF, 0xFF, 0xFF];
+        let mut cursor = Cursor::new(bytes.as_slice());
+        let mut reader = Reader::new(&mut cursor);
+        let res = GpsAscii::from_reader_with_ctx(&mut reader, Endian::Big);
+        assert!(matches!(res, Err(DekuError::Assertion(_))));
+    }
+
+    #[test]
+    fn largest_word_count_reads_as_incomplete() {
+        // The largest count a packet can hold is accepted, and a field missing its words is
+        // an incomplete read rather than a panic.
+        let mut bytes = vec![0x00, 0x0A, 0x1B, 0x2C];
+        bytes.extend_from_slice(&GpsAscii::MAX_ASCII_WORDS.to_be_bytes());
+        let mut cursor = Cursor::new(bytes.as_slice());
+        let mut reader = Reader::new(&mut cursor);
+        let res = GpsAscii::from_reader_with_ctx(&mut reader, Endian::Big);
+        assert!(matches!(res, Err(DekuError::Incomplete(_))));
     }
 
     #[test]
