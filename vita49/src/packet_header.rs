@@ -61,7 +61,38 @@ pub enum PacketType {
 }
 
 impl PacketType {
-    /// Returns true if the packet type has a signal data-style payload.
+    /// Returns true if the packet type is signal data (types 0 and 1).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::SignalData.is_signal_data());
+    /// assert!(!PacketType::ExtensionData.is_signal_data());
+    /// ```
+    pub fn is_signal_data(&self) -> bool {
+        matches!(
+            &self,
+            PacketType::SignalData | PacketType::SignalDataWithoutStreamId
+        )
+    }
+    /// Returns true if the packet type is extension data (types 2 and 3).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::ExtensionDataWithoutStreamId.is_extension_data());
+    /// assert!(!PacketType::SignalData.is_extension_data());
+    /// ```
+    pub fn is_extension_data(&self) -> bool {
+        matches!(
+            &self,
+            PacketType::ExtensionData | PacketType::ExtensionDataWithoutStreamId
+        )
+    }
+    /// Returns true if the packet type has a signal data-style payload,
+    /// meaning either signal data or extension data. Use
+    /// [`Self::is_signal_data`] or [`Self::is_extension_data`] to tell
+    /// the two apart.
     pub fn has_signal_data_payload(&self) -> bool {
         matches!(
             &self,
@@ -71,7 +102,32 @@ impl PacketType {
                 | PacketType::ExtensionDataWithoutStreamId
         )
     }
-    /// Returns true if the packet type has a context-style payload.
+    /// Returns true if the packet type is context (type 4).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::Context.is_context());
+    /// assert!(!PacketType::ExtensionContext.is_context());
+    /// ```
+    pub fn is_context(&self) -> bool {
+        matches!(&self, PacketType::Context)
+    }
+    /// Returns true if the packet type is extension context (type 5).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::ExtensionContext.is_extension_context());
+    /// assert!(!PacketType::Context.is_extension_context());
+    /// ```
+    pub fn is_extension_context(&self) -> bool {
+        matches!(&self, PacketType::ExtensionContext)
+    }
+    /// Returns true if the packet type has a context-style payload,
+    /// meaning either context or extension context. Use
+    /// [`Self::is_context`] or [`Self::is_extension_context`] to tell
+    /// the two apart.
     pub fn has_context_payload(&self) -> bool {
         matches!(&self, PacketType::Context | PacketType::ExtensionContext)
     }
@@ -553,6 +609,14 @@ impl PacketHeader {
         ret
     }
 
+    /// Creates a new extension data packet header with some sane defaults.
+    pub fn new_extension_data_header() -> PacketHeader {
+        // Extension data shares the signal data layout and indicator bits.
+        let mut ret = PacketHeader::new_signal_data_header();
+        ret.set_packet_type(PacketType::ExtensionData);
+        ret
+    }
+
     /// Creates a new context packet header with some sane defaults.
     pub fn new_context_header() -> PacketHeader {
         let mut ret = PacketHeader {
@@ -564,6 +628,14 @@ impl PacketHeader {
             not_a_vita490_packet: false,
             timestamp_mode: TimestampMode::GeneralTiming,
         }));
+        ret
+    }
+
+    /// Creates a new extension context packet header with some sane defaults.
+    pub fn new_extension_context_header() -> PacketHeader {
+        // Extension context shares the context indicator bits.
+        let mut ret = PacketHeader::new_context_header();
+        ret.set_packet_type(PacketType::ExtensionContext);
         ret
     }
 

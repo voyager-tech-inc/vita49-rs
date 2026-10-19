@@ -97,16 +97,23 @@ the different payload types (wrapping the underlying structure):
 From [`payload.rs`](vita49/src/payload.rs):
 ```rust
 #[deku(ctx = "packet_header: &PacketHeader", id = "packet_header.packet_type()")]
+#[non_exhaustive]
 pub enum Payload {
-    /// Payload for a context packet.
-    #[deku(id = "PacketType::Context | PacketType::ExtensionContext")]
+    /// Payload for a context packet (type 4).
+    #[deku(id = "PacketType::Context")]
     Context(Context),
+    /// Payload for an extension context packet (type 5).
+    #[deku(id = "PacketType::ExtensionContext")]
+    ExtensionContext(Vec<u8>),
     /// Payload for a command packet.
     #[deku(id = "PacketType::Command | PacketType::ExtensionCommand")]
     Command(Command),
-    /// Payload for signal data.
-    #[deku(id_pat = "_")]
+    /// Payload for a signal data packet (types 0 and 1).
+    #[deku(id = "PacketType::SignalData | PacketType::SignalDataWithoutStreamId")]
     SignalData(#[deku(ctx = "packet_header")] SignalData),
+    /// Payload for an extension data packet (types 2 and 3).
+    #[deku(id = "PacketType::ExtensionData | PacketType::ExtensionDataWithoutStreamId")]
+    ExtensionData(Vec<u8>),
 }
 ```
 
@@ -117,11 +124,16 @@ When parsing a packet, Deku will check the packet header for the
 packet type and match the payload variant accordingly. The underlying
 structure implementations are defined in [`context.rs`](vita49/src/context.rs),
 [`command.rs`](vita49/src/command.rs), and [`signal_data.rs`](vita49/src/signal_data.rs)
-respectively.
+respectively. Extension data and extension context payloads are
+application-defined, so they are plain bytes that reuse the signal data wire
+format. The packet's class identifier says which application format they follow.
+An extension context format that reuses the CIF layout can be parsed with
+`Context::from_cif_bytes`.
 
 The end-user is then expected to "unwrap" the payload to whatever type
 of packet is found. So, if the user checks the packet header and finds a
-context packet, they can safely run `packet.payload().context()`. This
+context packet (`PacketType::is_context`), they can safely run
+`packet.payload().context()`. This
 returns a `Result<&Context, VitaError>`. If the user tries to run the
 `context()` unwrapper on a non-context packet, an error will be returned.
 

@@ -63,6 +63,69 @@ impl Context {
         Context::default()
     }
 
+    /// Parses a payload that follows the standard CIF layout. Use this on an
+    /// extension context payload whose application format reuses the CIF
+    /// indicator words and fields.
+    ///
+    /// # Errors
+    /// This function will return an error if the bytes are not exactly one
+    /// CIF payload, including when bytes are left over after the last field.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut context = Context::new();
+    /// context.set_bandwidth_hz(Some(8e6));
+    ///
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.set_extension_context_payload(context.to_cif_bytes()?)?;
+    /// let parsed = Context::from_cif_bytes(packet.extension_context_payload()?)?;
+    /// assert_eq!(parsed.bandwidth_hz(), Some(8e6));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_cif_bytes(bytes: &[u8]) -> Result<Context, DekuError> {
+        let mut cursor = std::io::Cursor::new(bytes);
+        let context = {
+            let mut reader = deku::reader::Reader::new(&mut cursor);
+            Context::from_reader_with_ctx(&mut reader, deku::ctx::Endian::Big)?
+        };
+        if cursor.position() != bytes.len() as u64 {
+            return Err(DekuError::Parse("Too much data".into()));
+        }
+        Ok(context)
+    }
+
+    /// Serializes the context in the standard CIF layout. Use this to build
+    /// an extension context payload whose application format reuses the CIF
+    /// indicator words and fields.
+    ///
+    /// # Errors
+    /// This function will return an error if a field fails to serialize.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut context = Context::new();
+    /// context.set_bandwidth_hz(Some(8e6));
+    /// let bytes = context.to_cif_bytes()?;
+    /// assert_eq!(bytes.len(), context.size_words() as usize * 4);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_cif_bytes(&self) -> Result<Vec<u8>, DekuError> {
+        let mut bytes = Vec::with_capacity(self.size_words() as usize * 4);
+        {
+            let mut cursor = std::io::Cursor::new(&mut bytes);
+            let mut writer = deku::writer::Writer::new(&mut cursor);
+            self.to_writer(&mut writer, deku::ctx::Endian::Big)?;
+            writer.finalize()?;
+        }
+        Ok(bytes)
+    }
+
     /// Returns true if the context field change indicator is set, false if not.
     pub fn context_changed(&self) -> bool {
         self.cif0.context_field_changed()
@@ -244,6 +307,35 @@ mod tests {
         assert_eq!(context.spectrum().unwrap().spectrum_type_as_u32(), 0x101);
         assert_eq!(context.spectrum().unwrap().num_transform_points(), 1280);
         assert_eq!(context.spectrum().unwrap().f1_index(), -640);
+    }
+
+    #[test]
+    fn cif_bytes_round_trip() {
+        use crate::prelude::*;
+        let mut context = Context::new();
+        context.set_bandwidth_hz(Some(6e6));
+        context.set_rf_ref_freq_hz(Some(100e6));
+        let bytes = context.to_cif_bytes().unwrap();
+        assert_eq!(bytes.len(), context.size_words() as usize * 4);
+        assert_eq!(Context::from_cif_bytes(&bytes).unwrap(), context);
+    }
+
+    #[test]
+    fn cif_bytes_with_leftover_data_are_rejected() {
+        use crate::prelude::*;
+        // CIF0 with no fields enabled, then one word no CIF bit accounts for.
+        let bytes = [0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD];
+        assert!(Context::from_cif_bytes(&bytes).is_err());
+        assert!(Context::from_cif_bytes(&bytes[..4]).is_ok());
+    }
+
+    #[test]
+    fn truncated_cif_bytes_are_rejected() {
+        use crate::prelude::*;
+        let mut context = Context::new();
+        context.set_bandwidth_hz(Some(6e6));
+        let bytes = context.to_cif_bytes().unwrap();
+        assert!(Context::from_cif_bytes(&bytes[..bytes.len() - 4]).is_err());
     }
 
     #[test]
