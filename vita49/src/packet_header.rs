@@ -379,6 +379,10 @@ impl PacketHeader {
         (((self.hword_1 >> 12) & 0b1111) as u8).try_into().unwrap()
     }
     /// Sets the packet type.
+    ///
+    /// On a header inside a [`Vrt`](crate::Vrt), use
+    /// [`Vrt::set_packet_type`](crate::Vrt::set_packet_type) instead. It
+    /// checks the type against the payload and keeps the stream ID in step.
     pub fn set_packet_type(&mut self, packet_type: PacketType) {
         self.hword_1 &= !(0b1111 << 12);
         self.hword_1 |= (packet_type as u16) << 12

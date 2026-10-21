@@ -186,6 +186,30 @@ impl Payload {
         }
     }
 
+    /// Gets the packet types whose header selects this payload variant.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// let packet = Vrt::new_context_packet();
+    /// assert_eq!(
+    ///     packet.payload().packet_types(),
+    ///     &[PacketType::Context, PacketType::ExtensionContext]
+    /// );
+    /// ```
+    pub fn packet_types(&self) -> &'static [PacketType] {
+        match self {
+            Payload::SignalData(_) => &[
+                PacketType::SignalDataWithoutStreamId,
+                PacketType::SignalData,
+                PacketType::ExtensionDataWithoutStreamId,
+                PacketType::ExtensionData,
+            ],
+            Payload::Context(_) => &[PacketType::Context, PacketType::ExtensionContext],
+            Payload::Command(_) => &[PacketType::Command, PacketType::ExtensionCommand],
+        }
+    }
+
     /// Gets the payload size in 32-bit words.
     pub fn size_words(&self) -> u16 {
         match self {

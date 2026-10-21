@@ -18,6 +18,7 @@ use deku::prelude::*;
 /// of VRT packets.
 pub struct Vrt {
     /// VRT packet header (present on all packets).
+    #[deku(writer = "Vrt::write_header(deku::writer, header, stream_id, payload)")]
     header: PacketHeader,
     /// Stream identifier.
     #[deku(cond = "header.stream_id_included()")]
@@ -41,6 +42,34 @@ pub struct Vrt {
 }
 
 impl Vrt {
+    /// Writes the header after checking that its packet type matches the
+    /// payload variant and the stream ID's presence.
+    fn write_header<W: std::io::Write + std::io::Seek>(
+        writer: &mut deku::writer::Writer<W>,
+        header: &PacketHeader,
+        stream_id: &Option<u32>,
+        payload: &Payload,
+    ) -> Result<(), DekuError> {
+        // The setters keep the header and the fields in step, but `header_mut` and `payload_mut`
+        // can change either side alone, and the bytes would then read back as a different packet.
+        // The check runs before the first byte so a refused packet leaves nothing in the writer.
+        let packet_type = header.packet_type();
+        if !payload.packet_types().contains(&packet_type) {
+            let err = VitaError::WrongPacketType {
+                expected: payload.packet_types(),
+                actual: packet_type,
+            };
+            return Err(DekuError::InvalidParam(err.to_string().into()));
+        }
+        if header.stream_id_included() != stream_id.is_some() {
+            return Err(DekuError::InvalidParam(
+                format!("packet type {packet_type:?} does not match stream ID {stream_id:?}")
+                    .into(),
+            ));
+        }
+        header.to_writer(writer, deku::ctx::Endian::Big)
+    }
+
     /// Produce a new signal data packet with some sane defaults.
     ///
     /// # Example
@@ -226,8 +255,60 @@ impl Vrt {
         &self.header
     }
     /// Gets a mutable reference to the packet header.
+    ///
+    /// Use [`Self::set_packet_type`] to change the packet type. Setting it
+    /// through [`PacketHeader::set_packet_type`] does not check it against
+    /// the payload, and serializing a packet whose header and payload
+    /// disagree returns an error.
     pub fn header_mut(&mut self) -> &mut PacketHeader {
         &mut self.header
+    }
+
+    /// Sets the packet type.
+    ///
+    /// The payload variant decides which packet types a packet can take, as
+    /// [`Payload::packet_types`] lists. For example, a signal data packet can
+    /// become an extension data packet, but not a context packet.
+    ///
+    /// A type without a stream ID clears the stream ID, and a type with one
+    /// sets a missing stream ID to 0. The packet size is updated
+    /// automatically.
+    ///
+    /// # Errors
+    /// A packet type the payload does not accept returns
+    /// [`VitaError::WrongPacketType`] and leaves the packet unchanged.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_signal_data_packet();
+    /// packet.set_packet_type(PacketType::ExtensionData)?;
+    /// assert_eq!(packet.header().packet_type(), PacketType::ExtensionData);
+    ///
+    /// assert!(matches!(
+    ///     packet.set_packet_type(PacketType::Context),
+    ///     Err(VitaError::WrongPacketType { .. })
+    /// ));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_packet_type(&mut self, packet_type: PacketType) -> Result<(), VitaError> {
+        let expected = self.payload.packet_types();
+        if !expected.contains(&packet_type) {
+            return Err(VitaError::WrongPacketType {
+                expected,
+                actual: packet_type,
+            });
+        }
+        self.header.set_packet_type(packet_type);
+        if !self.header.stream_id_included() {
+            self.stream_id = None;
+        } else if self.stream_id.is_none() {
+            self.stream_id = Some(0);
+        }
+        self.update_packet_size();
+        Ok(())
     }
 
     /// Get the packet stream ID.
@@ -642,6 +723,134 @@ mod tests {
             .set_signal_payload(vec![0u8; room_words * 4])
             .unwrap();
         assert_eq!(packet.header().packet_size(), u16::MAX);
+    }
+
+    #[test]
+    fn packet_type_within_the_payload_family_round_trips() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+        packet.set_packet_type(PacketType::ExtensionData).unwrap();
+        packet.set_signal_payload([1, 2, 3, 4]).unwrap();
+
+        let bytes = packet.to_bytes().unwrap();
+        let parsed = Vrt::try_from(&bytes[..]).unwrap();
+        assert_eq!(parsed, packet);
+        assert_eq!(parsed.signal_payload().unwrap(), &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn packet_type_outside_the_payload_family_is_rejected() {
+        use crate::prelude::*;
+        let cases = [
+            (Vrt::new_signal_data_packet(), PacketType::Context),
+            (Vrt::new_signal_data_packet(), PacketType::ExtensionCommand),
+            (Vrt::new_context_packet(), PacketType::SignalData),
+            (Vrt::new_context_packet(), PacketType::Command),
+            (Vrt::new_control_packet(), PacketType::ExtensionData),
+            (Vrt::new_control_packet(), PacketType::ExtensionContext),
+        ];
+        for (mut packet, packet_type) in cases {
+            let before = packet.clone();
+            assert!(matches!(
+                packet.set_packet_type(packet_type),
+                Err(VitaError::WrongPacketType { expected, actual })
+                    if actual == packet_type && expected == before.payload().packet_types()
+            ));
+            assert_eq!(packet, before);
+        }
+    }
+
+    #[test]
+    fn packet_type_keeps_the_stream_id_in_step() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+        packet.set_stream_id(Some(7));
+        let with_stream_id = packet.header().packet_size();
+
+        packet
+            .set_packet_type(PacketType::ExtensionDataWithoutStreamId)
+            .unwrap();
+        assert_eq!(packet.stream_id(), None);
+        assert_eq!(packet.header().packet_size(), with_stream_id - 1);
+
+        packet.set_packet_type(PacketType::SignalData).unwrap();
+        assert_eq!(packet.stream_id(), Some(0));
+        assert_eq!(packet.header().packet_size(), with_stream_id);
+
+        let bytes = packet.to_bytes().unwrap();
+        assert_eq!(Vrt::try_from(&bytes[..]).unwrap(), packet);
+    }
+
+    #[test]
+    fn header_type_that_disagrees_with_the_payload_is_not_written() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+        packet.header_mut().set_packet_type(PacketType::Context);
+        let err = packet.to_bytes().unwrap_err();
+        assert!(matches!(err, deku::DekuError::InvalidParam(_)));
+        assert!(err.to_string().contains("found Context"), "{err}");
+
+        let mut packet = Vrt::new_signal_data_packet();
+        *packet.payload_mut() = Payload::Context(Context::new());
+        let err = packet.to_bytes().unwrap_err();
+        assert!(err.to_string().contains("found SignalData"), "{err}");
+    }
+
+    #[test]
+    fn every_packet_type_parses_to_a_payload_that_accepts_it() {
+        use crate::prelude::*;
+        let cases = [
+            (
+                Vrt::new_signal_data_packet(),
+                PacketType::SignalDataWithoutStreamId,
+            ),
+            (Vrt::new_signal_data_packet(), PacketType::SignalData),
+            (
+                Vrt::new_signal_data_packet(),
+                PacketType::ExtensionDataWithoutStreamId,
+            ),
+            (Vrt::new_signal_data_packet(), PacketType::ExtensionData),
+            (Vrt::new_context_packet(), PacketType::Context),
+            (Vrt::new_context_packet(), PacketType::ExtensionContext),
+            (Vrt::new_control_packet(), PacketType::Command),
+            (Vrt::new_control_packet(), PacketType::ExtensionCommand),
+        ];
+        for (mut packet, packet_type) in cases {
+            packet.set_packet_type(packet_type).unwrap();
+            let bytes = packet.to_bytes().unwrap();
+            let parsed = Vrt::try_from(&bytes[..]).unwrap();
+            assert_eq!(parsed.header().packet_type(), packet_type);
+            // The variant the parser picked from the wire type has to accept that type, or
+            // the packet could not be written back.
+            assert!(parsed.payload().packet_types().contains(&packet_type));
+            assert_eq!(parsed, packet);
+        }
+    }
+
+    #[test]
+    fn refused_packet_leaves_nothing_in_the_writer() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+        packet.set_stream_id(Some(0xAABB_CCDD));
+        packet.header_mut().set_packet_type(PacketType::Context);
+
+        let mut out = Vec::new();
+        let mut writer = deku::writer::Writer::new(std::io::Cursor::new(&mut out));
+        assert!(packet.to_writer(&mut writer, ()).is_err());
+        writer.finalize().unwrap();
+        assert!(out.is_empty(), "{out:02x?}");
+    }
+
+    #[test]
+    fn header_type_that_disagrees_with_the_stream_id_is_not_written() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+        packet
+            .header_mut()
+            .set_packet_type(PacketType::SignalDataWithoutStreamId);
+        let err = packet.to_bytes().unwrap_err();
+        assert!(matches!(err, deku::DekuError::InvalidParam(_)));
+        assert!(err.to_string().contains("stream ID"), "{err}");
     }
 
     #[test]
