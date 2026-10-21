@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn create_control_packet() {
         let mut packet = Vrt::new_control_packet();
-        packet.set_stream_id(Some(0xDEADBEEF));
+        packet.set_stream_id(Some(0xDEADBEEF)).unwrap();
         packet.set_integer_timestamp(Some(0), Tsi::Utc).unwrap();
         packet
             .set_fractional_timestamp(Some(0), Tsf::SampleCount)
@@ -366,7 +366,7 @@ mod tests {
         use deku::DekuContainerWrite;
 
         let mut packet = Vrt::new_validation_ack_packet();
-        packet.update_packet_size();
+        packet.update_packet_size().unwrap();
         let mut bytes = packet.to_bytes().unwrap();
 
         // In Command, the CAM is the 32-bit word immediately following Stream ID (if stream ID included).
@@ -384,7 +384,7 @@ mod tests {
         use deku::DekuContainerWrite;
 
         let mut packet = Vrt::new_validation_ack_packet();
-        packet.update_packet_size();
+        packet.update_packet_size().unwrap();
         let mut bytes = packet.to_bytes().unwrap();
 
         // Clear validation bit (bit 20), execution bit (bit 19), state bit (bit 18)

@@ -389,7 +389,7 @@ mod tests {
         let mut packet = Vrt::new_context_packet();
         let context = packet.payload_mut().context_mut().unwrap();
         context.set_spectrum(Some(Spectrum::new()));
-        packet.update_packet_size();
+        packet.update_packet_size().unwrap();
         let bytes = packet.to_bytes().unwrap();
 
         // Find the CIF1 word (only the spectrum bit set) and additionally set

@@ -187,11 +187,16 @@ impl Payload {
     }
 
     /// Gets the payload size in 32-bit words.
-    pub fn size_words(&self) -> u16 {
+    ///
+    /// A signal data payload can exceed `u16::MAX` words, and
+    /// [`Vrt::update_packet_size`](crate::Vrt::update_packet_size) then returns
+    /// [`VitaError::PacketTooLarge`]. Context and command payloads are counted
+    /// in `u16`, so this does not cover one past that size.
+    pub fn size_words(&self) -> usize {
         match self {
             Payload::SignalData(p) => p.size_words(),
-            Payload::Context(p) => p.size_words(),
-            Payload::Command(p) => p.size_words(),
+            Payload::Context(p) => usize::from(p.size_words()),
+            Payload::Command(p) => usize::from(p.size_words()),
         }
     }
 }

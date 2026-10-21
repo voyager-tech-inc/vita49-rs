@@ -42,7 +42,7 @@ fn create_control_message(bandwidth_hz: Option<f64>, tune_freq_hz: Option<f64>) 
         Timestamp::now().as_nanosecond() - (secs_since_epoch as f64 * 1e12) as i128;
 
     let mut control_packet = Vrt::new_control_packet();
-    control_packet.set_stream_id(Some(0x1));
+    control_packet.set_stream_id(Some(0x1)).unwrap();
     control_packet
         .set_integer_timestamp(Some(secs_since_epoch), Tsi::Utc)
         .unwrap();
@@ -73,14 +73,14 @@ fn create_control_message(bandwidth_hz: Option<f64>, tune_freq_hz: Option<f64>) 
     control.set_rf_ref_freq_hz(tune_freq_hz);
     control.set_bandwidth_hz(bandwidth_hz);
 
-    control_packet.update_packet_size();
+    control_packet.update_packet_size().unwrap();
     control_packet
 }
 
 /// Create a new VRT query packet.
 fn create_query_message() -> Vrt {
     let mut control_packet = Vrt::new_control_packet();
-    control_packet.set_stream_id(Some(0x1));
+    control_packet.set_stream_id(Some(0x1)).unwrap();
 
     let mut cam = ControlAckMode::default();
     cam.set_action_mode(ActionMode::NoAction);
@@ -94,7 +94,7 @@ fn create_query_message() -> Vrt {
         .set_controller_uuid(Some(0x7F3CEF62E56848F18B88A7576FA634DF))
         .unwrap();
 
-    control_packet.update_packet_size();
+    control_packet.update_packet_size().unwrap();
     control_packet
 }
 

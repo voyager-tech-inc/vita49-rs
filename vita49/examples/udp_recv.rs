@@ -54,8 +54,8 @@ fn main() -> Result<(), std::io::Error> {
                 };
                 // Mirror some of the header values from the command packet to make
                 // sure the controller knows which command we're replying to.
-                reply.set_stream_id(packet.stream_id());
-                reply.update_packet_size();
+                reply.set_stream_id(packet.stream_id()).unwrap();
+                reply.update_packet_size().unwrap();
 
                 // Send a VITA 49.2 ACK back to the client
                 socket.send_to(&reply.to_bytes()?, src).unwrap();

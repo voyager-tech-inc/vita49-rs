@@ -644,7 +644,7 @@ mod tests {
 
         // Set the class_id
         let class_id = Some(ClassIdentifier::default());
-        packet.set_class_id(class_id);
+        packet.set_class_id(class_id).unwrap();
 
         // Now the class_id_included bit should be true
         assert!(packet.header().class_id_included());

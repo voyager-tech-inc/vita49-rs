@@ -207,11 +207,11 @@ fn read_command() {
 fn construct_signal_data_packet() {
     log_init();
     let mut packet = Vrt::new_signal_data_packet();
-    packet.set_stream_id(Some(0xDEADBEEF));
+    packet.set_stream_id(Some(0xDEADBEEF)).unwrap();
     packet
         .set_signal_payload(&[1, 2, 3, 4, 5, 6, 7, 8])
         .unwrap();
-    packet.update_packet_size();
+    packet.update_packet_size().unwrap();
     assert!(wireshark_parse(
         &packet,
         &[
@@ -237,8 +237,8 @@ fn construct_context_packet() {
     spectrum.set_f1_index(-1280);
     spectrum.set_f2_index(1279);
     context.set_spectrum(Some(spectrum));
-    packet.set_stream_id(Some(0xDEADBEEF));
-    packet.update_packet_size();
+    packet.set_stream_id(Some(0xDEADBEEF)).unwrap();
+    packet.update_packet_size().unwrap();
     assert!(wireshark_parse(
         &packet,
         &[
@@ -255,7 +255,7 @@ fn construct_context_packet() {
 fn construct_control_packet() {
     log_init();
     let mut packet = Vrt::new_control_packet();
-    packet.set_stream_id(Some(0xDEADBEEF));
+    packet.set_stream_id(Some(0xDEADBEEF)).unwrap();
     let command = packet.payload_mut().command_mut().unwrap();
     let control = command.payload_mut().control_mut().unwrap();
     control.set_controllee_id(Some(0));
@@ -275,7 +275,7 @@ fn construct_control_packet() {
     command.set_controllee_id(Some(0)).unwrap();
     command.set_controller_uuid(Some(0)).unwrap();
 
-    packet.update_packet_size();
+    packet.update_packet_size().unwrap();
     assert!(wireshark_parse(&packet, &["Packet type: Unknown (6)"]).is_ok());
     log::info!("\nConstructed command packet:\n{packet:#?}");
     log::info!("\nPacket size (words): {}", packet.header().packet_size());
@@ -365,7 +365,7 @@ fn construct_cif7_packet() {
     context.set_bandwidth_hz_attributes(Some(vec![8.0, 7.0]));
     context.set_sample_rate_sps(Some(10e6));
     context.set_sample_rate_sps_attributes(Some(vec![11.0, 9.0]));
-    packet.update_packet_size();
+    packet.update_packet_size().unwrap();
     assert_eq!(packet.header().packet_size(), 16);
     assert!(wireshark_parse(
         &packet,
