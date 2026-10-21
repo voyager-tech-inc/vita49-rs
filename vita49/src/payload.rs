@@ -31,6 +31,10 @@ use crate::VitaError;
 )]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::large_enum_variant)]
+// Every packet type has a variant today, but extension context and extension
+// command payloads may get their own variants rather than reusing the CIF
+// ones, so leave room to add them without a breaking change.
+#[non_exhaustive]
 pub enum Payload {
     /// Payload for a context packet.
     #[deku(id = "PacketType::Context | PacketType::ExtensionContext")]
@@ -38,9 +42,20 @@ pub enum Payload {
     /// Payload for a command packet.
     #[deku(id = "PacketType::Command | PacketType::ExtensionCommand")]
     Command(#[deku(ctx = "packet_header")] Command),
-    /// Payload for signal data.
-    #[deku(id_pat = "_")]
+    /// Payload for a signal data packet (types 0 and 1).
+    #[deku(id = "PacketType::SignalData | PacketType::SignalDataWithoutStreamId")]
     SignalData(#[deku(ctx = "packet_header")] SignalData),
+    /// Payload for an extension data packet (types 2 and 3). The bytes are
+    /// application-defined. Use the packet's class identifier to tell which
+    /// format they follow.
+    #[deku(id = "PacketType::ExtensionData | PacketType::ExtensionDataWithoutStreamId")]
+    ExtensionData(
+        #[deku(
+            reader = "SignalData::read_payload(deku::reader, packet_header.payload_size_words(), endian)",
+            writer = "SignalData::write_payload(deku::writer, field_0, endian)"
+        )]
+        Vec<u8>,
+    ),
 }
 
 impl Payload {
@@ -105,6 +120,76 @@ impl Payload {
         match self {
             Payload::SignalData(p) => Ok(p),
             _ => Err(VitaError::SignalDataOnly),
+        }
+    }
+
+    /// Gets the extension data payload bytes.
+    ///
+    /// # Errors
+    /// This function will return an error if run on a packet other
+    /// than an extension data packet.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// let packet = Vrt::new_extension_data_packet();
+    /// let ext_data: &[u8] = packet.payload().extension_data().unwrap();
+    /// assert!(ext_data.is_empty());
+    /// ```
+    pub fn extension_data(&self) -> Result<&[u8], VitaError> {
+        match self {
+            Payload::ExtensionData(p) => Ok(p),
+            _ => Err(VitaError::ExtensionDataOnly),
+        }
+    }
+
+    /// Consumes the `Payload` struct and returns the extension data
+    /// payload bytes.
+    ///
+    /// # Errors
+    /// This function will return an error if run on a packet other
+    /// than an extension data packet.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// let packet = Vrt::new_extension_data_packet();
+    /// let ext_data: Vec<u8> = packet.into_payload().into_extension_data().unwrap();
+    /// assert!(ext_data.is_empty());
+    /// ```
+    pub fn into_extension_data(self) -> Result<Vec<u8>, VitaError> {
+        match self {
+            Payload::ExtensionData(p) => Ok(p),
+            _ => Err(VitaError::ExtensionDataOnly),
+        }
+    }
+
+    /// Gets the extension data payload bytes as a mutable slice.
+    ///
+    /// The length does not change, so there is no need to call
+    /// [`crate::Vrt::update_packet_size`]. To change the length, use
+    /// [`crate::Vrt::resize_extension_payload`] or
+    /// [`crate::Vrt::set_extension_payload`].
+    ///
+    /// # Errors
+    /// This function will return an error if run on a packet other
+    /// than an extension data packet.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_data_packet();
+    /// packet.set_extension_payload(&[1, 2, 3, 4])?;
+    /// packet.payload_mut().extension_data_mut()?.reverse();
+    /// assert_eq!(packet.extension_payload()?, &[4, 3, 2, 1]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn extension_data_mut(&mut self) -> Result<&mut [u8], VitaError> {
+        match self {
+            Payload::ExtensionData(p) => Ok(p),
+            _ => Err(VitaError::ExtensionDataOnly),
         }
     }
 
@@ -190,6 +275,7 @@ impl Payload {
     pub fn size_words(&self) -> u16 {
         match self {
             Payload::SignalData(p) => p.size_words(),
+            Payload::ExtensionData(p) => SignalData::size_words_for(p.len()),
             Payload::Context(p) => p.size_words(),
             Payload::Command(p) => p.size_words(),
         }

@@ -61,7 +61,38 @@ pub enum PacketType {
 }
 
 impl PacketType {
-    /// Returns true if the packet type has a signal data-style payload.
+    /// Returns true if the packet type is signal data (types 0 and 1).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::SignalData.is_signal_data());
+    /// assert!(!PacketType::ExtensionData.is_signal_data());
+    /// ```
+    pub fn is_signal_data(&self) -> bool {
+        matches!(
+            &self,
+            PacketType::SignalData | PacketType::SignalDataWithoutStreamId
+        )
+    }
+    /// Returns true if the packet type is extension data (types 2 and 3).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::ExtensionDataWithoutStreamId.is_extension_data());
+    /// assert!(!PacketType::SignalData.is_extension_data());
+    /// ```
+    pub fn is_extension_data(&self) -> bool {
+        matches!(
+            &self,
+            PacketType::ExtensionData | PacketType::ExtensionDataWithoutStreamId
+        )
+    }
+    /// Returns true if the packet type has a signal data-style payload,
+    /// meaning either signal data or extension data. Use
+    /// [`Self::is_signal_data`] or [`Self::is_extension_data`] to tell
+    /// the two apart.
     pub fn has_signal_data_payload(&self) -> bool {
         matches!(
             &self,
@@ -550,6 +581,14 @@ impl PacketHeader {
             not_a_vita490_packet: false,
             signal_spectral_data: false,
         }));
+        ret
+    }
+
+    /// Creates a new extension data packet header with some sane defaults.
+    pub fn new_extension_data_header() -> PacketHeader {
+        // Extension data shares the signal data layout and indicator bits.
+        let mut ret = PacketHeader::new_signal_data_header();
+        ret.set_packet_type(PacketType::ExtensionData);
         ret
     }
 
