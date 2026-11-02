@@ -102,7 +102,32 @@ impl PacketType {
                 | PacketType::ExtensionDataWithoutStreamId
         )
     }
-    /// Returns true if the packet type has a context-style payload.
+    /// Returns true if the packet type is context (type 4).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::Context.is_context());
+    /// assert!(!PacketType::ExtensionContext.is_context());
+    /// ```
+    pub fn is_context(&self) -> bool {
+        matches!(&self, PacketType::Context)
+    }
+    /// Returns true if the packet type is extension context (type 5).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// assert!(PacketType::ExtensionContext.is_extension_context());
+    /// assert!(!PacketType::Context.is_extension_context());
+    /// ```
+    pub fn is_extension_context(&self) -> bool {
+        matches!(&self, PacketType::ExtensionContext)
+    }
+    /// Returns true if the packet type has a context-style payload,
+    /// meaning either context or extension context. Use
+    /// [`Self::is_context`] or [`Self::is_extension_context`] to tell
+    /// the two apart.
     pub fn has_context_payload(&self) -> bool {
         matches!(&self, PacketType::Context | PacketType::ExtensionContext)
     }
@@ -607,6 +632,14 @@ impl PacketHeader {
             not_a_vita490_packet: false,
             timestamp_mode: TimestampMode::GeneralTiming,
         }));
+        ret
+    }
+
+    /// Creates a new extension context packet header with some sane defaults.
+    pub fn new_extension_context_header() -> PacketHeader {
+        // Extension context shares the context indicator bits.
+        let mut ret = PacketHeader::new_context_header();
+        ret.set_packet_type(PacketType::ExtensionContext);
         ret
     }
 

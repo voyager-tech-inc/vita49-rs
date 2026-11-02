@@ -147,6 +147,34 @@ impl Vrt {
         ret
     }
 
+    /// Produce a new extension context packet with some sane defaults.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.set_stream_id(Some(0xDEADBEEF));
+    /// packet.set_extension_context_payload(&[1, 2, 3, 4])?;
+    /// assert_eq!(packet.header().packet_type(), PacketType::ExtensionContext);
+    /// assert_eq!(packet.extension_context_payload()?, &[1, 2, 3, 4]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_extension_context_packet() -> Vrt {
+        let mut ret = Vrt {
+            header: PacketHeader::new_extension_context_header(),
+            stream_id: Some(0),
+            class_id: None,
+            integer_timestamp: None,
+            fractional_timestamp: None,
+            payload: Payload::ExtensionContext(Vec::new()),
+            trailer: None,
+        };
+        ret.update_packet_size();
+        ret
+    }
+
     /// Produce a new control packet.
     ///
     /// # Example
@@ -293,10 +321,11 @@ impl Vrt {
     ///
     /// A packet can switch between the standard and extension types of its
     /// family, with or without a stream ID where the family allows it: data
-    /// (types 0 to 3), context (types 4 and 5), or command (types 6 and 7).
-    /// Switching between signal data and extension data moves the payload
-    /// bytes into the other [`Payload`] variant unchanged. Switching between
-    /// families, such as data to context, is refused.
+    /// (types 0 to 3) or command (types 6 and 7). Switching between signal
+    /// data and extension data changes the [`Payload`] variant and keeps the
+    /// payload bytes. Switching between families, such as data to context, is
+    /// refused. Context (type 4) and extension context (type 5) have different
+    /// payload layouts, so switching between those is refused too.
     ///
     /// A type without a stream ID clears the stream ID, and a type with one
     /// sets a missing stream ID to 0. The packet size is updated
@@ -881,6 +910,159 @@ impl Vrt {
         self.payload.into_extension_data()
     }
 
+    /// Get a read-only slice of the extension context packet payload.
+    ///
+    /// # Errors
+    /// This function should only be used with an extension context packet
+    /// type. Use of this function on other packet types, including context,
+    /// will return an error.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.set_extension_context_payload(&[1, 2, 3, 4])?;
+    /// assert_eq!(packet.extension_context_payload()?, &[1, 2, 3, 4]);
+    /// assert!(packet.payload().context().is_err());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn extension_context_payload(&self) -> Result<&[u8], VitaError> {
+        self.payload.extension_context()
+    }
+
+    /// Get a mutable slice of the extension context packet payload.
+    ///
+    /// The length does not change, so there is no need to call
+    /// [`crate::Vrt::update_packet_size`]. To change the length and mutate, use
+    /// [`Self::resize_extension_context_payload`].
+    ///
+    /// # Errors
+    /// This function should only be used with an extension context packet
+    /// type. Use of this function on other packet types will return an error.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.set_extension_context_payload(&[1, 2, 3, 4])?;
+    /// packet.extension_context_payload_mut()?.reverse();
+    /// assert_eq!(packet.extension_context_payload()?, &[4, 3, 2, 1]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn extension_context_payload_mut(&mut self) -> Result<&mut [u8], VitaError> {
+        self.payload.extension_context_mut()
+    }
+
+    /// Resize the extension context packet payload.
+    ///
+    /// Growing the payload zeroes the new bytes, and shrinking it truncates.
+    /// The packet size is updated automatically so calling
+    /// [`crate::Vrt::update_packet_size`] is not necessary. To keep the length
+    /// and mutate, use [`Self::extension_context_payload_mut`].
+    ///
+    /// # Errors
+    /// This function should only be used with an extension context packet
+    /// type. Use of this function on other packet types will return an error.
+    ///
+    /// An error is also returned when `len` is longer than
+    /// `(u16::MAX - 8) * 4` bytes, the most that fits in the 16-bit VITA 49
+    /// packet size field alongside the largest possible prologue and trailer.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.resize_extension_context_payload(8)?;
+    /// packet
+    ///     .extension_context_payload_mut()?
+    ///     .copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// assert_eq!(packet.extension_context_payload()?, &[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// assert_eq!(packet.header().packet_size(), 4);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn resize_extension_context_payload(&mut self, len: usize) -> Result<(), VitaError> {
+        // The type check comes first, so a call on the wrong packet type reports that.
+        self.payload.extension_context()?;
+        if !SignalData::is_payload_len_in_range(len) {
+            return Err(VitaError::OutOfRange);
+        }
+        match &mut self.payload {
+            Payload::ExtensionContext(data) => data.resize(len, 0),
+            _ => return Err(VitaError::ExtensionContextOnly),
+        }
+        self.update_packet_size();
+        Ok(())
+    }
+
+    /// Set the extension context packet payload to some raw bytes.
+    /// Can be an owned `Vec<u8>` (zero-copy) or a `&[u8]` slice which
+    /// will allocate under the hood.
+    ///
+    /// # Errors
+    /// This function should only be used with an extension context packet
+    /// type. Use of this function on other packet types will return an error.
+    ///
+    /// An error is also returned when the payload is longer than
+    /// `(u16::MAX - 8) * 4` bytes, the most that fits in the 16-bit VITA 49
+    /// packet size field alongside the largest possible prologue and trailer.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.set_extension_context_payload(vec![1, 2, 3, 4, 5, 6, 7, 8])?;
+    /// assert_eq!(packet.extension_context_payload()?, &[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// assert!(Vrt::new_context_packet()
+    ///     .set_extension_context_payload(&[1, 2, 3, 4])
+    ///     .is_err());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_extension_context_payload(
+        &mut self,
+        payload: impl Into<Vec<u8>>,
+    ) -> Result<(), VitaError> {
+        self.payload.extension_context()?;
+        let payload = payload.into();
+        if !SignalData::is_payload_len_in_range(payload.len()) {
+            return Err(VitaError::OutOfRange);
+        }
+        match &mut self.payload {
+            Payload::ExtensionContext(data) => *data = payload,
+            _ => return Err(VitaError::ExtensionContextOnly),
+        }
+        self.update_packet_size();
+        Ok(())
+    }
+
+    /// Consume the VRT packet and extract the owned extension context payload.
+    /// This avoids cloning the internal vector.
+    ///
+    /// # Errors
+    /// This function should only be used with an extension context packet
+    /// type. Use of this function on other packet types will return an error.
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_extension_context_packet();
+    /// packet.set_extension_context_payload(&[1, 2, 3, 4])?;
+    /// assert_eq!(packet.into_extension_context_payload()?, vec![1, 2, 3, 4]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn into_extension_context_payload(self) -> Result<Vec<u8>, VitaError> {
+        self.payload.into_extension_context()
+    }
+
     /// Update the VRT packet header size field to reflect the current contents of
     /// the data structure.
     ///
@@ -1006,28 +1188,25 @@ mod tests {
     }
 
     #[test]
-    fn context_and_command_switch_between_standard_and_extension() {
+    fn command_switches_between_standard_and_extension() {
         use crate::prelude::*;
-        let cases = [
-            (Vrt::new_context_packet(), PacketType::ExtensionContext),
-            (Vrt::new_control_packet(), PacketType::ExtensionCommand),
-        ];
-        for (mut packet, extension_type) in cases {
-            let standard_type = packet.header().packet_type();
-            packet.set_stream_id(Some(7));
-            let payload = packet.payload().clone();
+        let mut packet = Vrt::new_control_packet();
+        let standard_type = packet.header().packet_type();
+        packet.set_stream_id(Some(7));
+        let payload = packet.payload().clone();
 
-            packet.set_packet_type(extension_type).unwrap();
-            assert_eq!(packet.header().packet_type(), extension_type);
-            assert_eq!(packet.payload(), &payload);
-            assert_eq!(packet.stream_id(), Some(7));
-            let bytes = packet.to_bytes().unwrap();
-            assert_eq!(Vrt::try_from(&bytes[..]).unwrap(), packet);
+        packet
+            .set_packet_type(PacketType::ExtensionCommand)
+            .unwrap();
+        assert_eq!(packet.header().packet_type(), PacketType::ExtensionCommand);
+        assert_eq!(packet.payload(), &payload);
+        assert_eq!(packet.stream_id(), Some(7));
+        let bytes = packet.to_bytes().unwrap();
+        assert_eq!(Vrt::try_from(&bytes[..]).unwrap(), packet);
 
-            packet.set_packet_type(standard_type).unwrap();
-            assert_eq!(packet.header().packet_type(), standard_type);
-            assert_eq!(packet.payload(), &payload);
-        }
+        packet.set_packet_type(standard_type).unwrap();
+        assert_eq!(packet.header().packet_type(), standard_type);
+        assert_eq!(packet.payload(), &payload);
     }
 
     #[test]
@@ -1069,6 +1248,8 @@ mod tests {
             (Vrt::new_signal_data_packet(), PacketType::ExtensionCommand),
             (Vrt::new_context_packet(), PacketType::SignalData),
             (Vrt::new_context_packet(), PacketType::Command),
+            (Vrt::new_context_packet(), PacketType::ExtensionContext),
+            (Vrt::new_extension_context_packet(), PacketType::Context),
             (Vrt::new_control_packet(), PacketType::ExtensionData),
             (Vrt::new_control_packet(), PacketType::ExtensionContext),
         ];
@@ -1135,7 +1316,8 @@ mod tests {
         let cases = [
             (Vrt::new_signal_data_packet(), &all_packet_types[0..2]),
             (Vrt::new_extension_data_packet(), &all_packet_types[2..4]),
-            (Vrt::new_context_packet(), &all_packet_types[4..6]),
+            (Vrt::new_context_packet(), &all_packet_types[4..5]),
+            (Vrt::new_extension_context_packet(), &all_packet_types[5..6]),
             (Vrt::new_control_packet(), &all_packet_types[6..8]),
         ];
         for (packet, supported) in cases {
@@ -1165,7 +1347,10 @@ mod tests {
             ),
             (Vrt::new_signal_data_packet(), PacketType::ExtensionData),
             (Vrt::new_context_packet(), PacketType::Context),
-            (Vrt::new_context_packet(), PacketType::ExtensionContext),
+            (
+                Vrt::new_extension_context_packet(),
+                PacketType::ExtensionContext,
+            ),
             (Vrt::new_control_packet(), PacketType::Command),
             (Vrt::new_control_packet(), PacketType::ExtensionCommand),
         ];
@@ -1404,6 +1589,181 @@ mod tests {
         assert!(matches!(
             packet.into_extension_payload(),
             Err(VitaError::ExtensionDataOnly)
+        ));
+    }
+
+    #[test]
+    fn extension_context_round_trips_with_prologue_fields() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_extension_context_packet();
+        packet.set_stream_id(Some(0xDEADBEEF));
+        packet.set_class_id(Some(ClassIdentifier::default()));
+        // A payload whose first word, read as CIF0, would enable fields the
+        // remaining words cannot fill.
+        packet
+            .set_extension_context_payload([0x80, 0x00, 0x00, 0x01, 0x3F, 0xF0])
+            .unwrap();
+
+        let bytes = packet.to_bytes().unwrap();
+        let parsed = Vrt::try_from(&bytes[..]).unwrap();
+        assert_eq!(parsed.header().packet_type(), PacketType::ExtensionContext);
+        assert_eq!(parsed.stream_id(), Some(0xDEADBEEF));
+        assert!(parsed.class_id().is_some());
+        assert!(matches!(parsed.payload(), Payload::ExtensionContext(_)));
+        // The payload is padded out to a whole word on the wire.
+        assert_eq!(
+            parsed.extension_context_payload().unwrap(),
+            &[0x80, 0x00, 0x00, 0x01, 0x3F, 0xF0, 0, 0]
+        );
+    }
+
+    #[test]
+    fn extension_context_keeps_its_stream_id() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_extension_context_packet();
+        // Rule 5.1.2-1 requires a stream ID on extension context packets.
+        packet.set_stream_id(None);
+        assert_eq!(packet.stream_id(), Some(0));
+        assert_eq!(packet.header().packet_type(), PacketType::ExtensionContext);
+    }
+
+    #[test]
+    fn extension_context_rejects_a_trailer() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_extension_context_packet();
+        assert!(packet.set_trailer(Some(Trailer::default())).is_err());
+        assert!(!packet.header().trailer_included());
+    }
+
+    #[test]
+    fn wire_context_type_selects_the_payload_variant() {
+        use crate::prelude::*;
+        // Header word: packet type in bits 31..28, packet size of 3 words
+        // (header, stream ID, one payload word). The payload word is a CIF0
+        // with no fields enabled, so both types can parse it.
+        let packet_for = |packet_type: u8| -> Vrt {
+            let bytes = [
+                packet_type << 4,
+                0x00,
+                0x00,
+                0x03,
+                0x00,
+                0x00,
+                0x00,
+                0x01,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ];
+            Vrt::try_from(&bytes[..]).unwrap()
+        };
+
+        let context = packet_for(0x4);
+        assert!(matches!(context.payload(), Payload::Context(_)));
+        assert!(matches!(
+            context.extension_context_payload(),
+            Err(VitaError::ExtensionContextOnly)
+        ));
+
+        let extension = packet_for(0x5);
+        assert!(matches!(extension.payload(), Payload::ExtensionContext(_)));
+        assert_eq!(extension.extension_context_payload().unwrap(), &[0; 4]);
+        assert!(matches!(
+            extension.payload().context(),
+            Err(VitaError::ContextOnly)
+        ));
+    }
+
+    #[test]
+    fn extension_context_with_a_cif_payload_parses_on_request() {
+        use crate::prelude::*;
+        let mut context = Context::new();
+        context.set_bandwidth_hz(Some(8e6));
+        let mut packet = Vrt::new_extension_context_packet();
+        packet
+            .set_extension_context_payload(context.to_cif_bytes().unwrap())
+            .unwrap();
+
+        let bytes = packet.to_bytes().unwrap();
+        let parsed = Vrt::try_from(&bytes[..]).unwrap();
+        let cif = Context::from_cif_bytes(parsed.extension_context_payload().unwrap()).unwrap();
+        assert_eq!(cif.bandwidth_hz(), Some(8e6));
+    }
+
+    #[test]
+    fn oversized_extension_context_payload_is_rejected() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_extension_context_packet();
+
+        assert!(matches!(
+            packet.set_extension_context_payload(vec![0u8; MAX_PAYLOAD_BYTES + 1]),
+            Err(VitaError::OutOfRange)
+        ));
+        assert!(matches!(
+            packet.resize_extension_context_payload(MAX_PAYLOAD_BYTES + 1),
+            Err(VitaError::OutOfRange)
+        ));
+        assert_eq!(packet.extension_context_payload().unwrap(), &[] as &[u8]);
+    }
+
+    #[test]
+    fn prologue_added_after_a_max_size_extension_context_payload_does_not_wrap() {
+        use crate::prelude::*;
+
+        let mut packet = Vrt::new_extension_context_packet();
+        packet
+            .set_extension_context_payload(vec![0u8; MAX_PAYLOAD_BYTES])
+            .unwrap();
+
+        // Extension context packets reject a trailer, so this is their largest prologue.
+        packet.set_class_id(Some(ClassIdentifier::default()));
+        packet.set_integer_timestamp(Some(1), Tsi::Utc).unwrap();
+        packet
+            .set_fractional_timestamp(Some(2), Tsf::SampleCount)
+            .unwrap();
+        packet.update_packet_size();
+        assert_eq!(packet.header().packet_size(), u16::MAX - 1);
+
+        let bytes = packet.to_bytes().unwrap();
+        assert_eq!(bytes.len(), (u16::MAX as usize - 1) * 4);
+        assert_eq!(Vrt::try_from(&bytes[..]).unwrap(), packet);
+    }
+
+    #[test]
+    fn extension_context_accessors_error_on_context() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_context_packet();
+        assert!(matches!(
+            packet.set_extension_context_payload([1, 2, 3, 4]),
+            Err(VitaError::ExtensionContextOnly)
+        ));
+        assert!(matches!(
+            packet.extension_context_payload_mut(),
+            Err(VitaError::ExtensionContextOnly)
+        ));
+        assert!(matches!(
+            packet.resize_extension_context_payload(4),
+            Err(VitaError::ExtensionContextOnly)
+        ));
+        assert!(matches!(
+            packet.into_extension_context_payload(),
+            Err(VitaError::ExtensionContextOnly)
+        ));
+    }
+
+    #[test]
+    fn oversized_extension_context_payload_on_context_reports_the_type() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_context_packet();
+        let oversized = (u16::MAX as usize + 1) * 4;
+        assert!(matches!(
+            packet.set_extension_context_payload(vec![0u8; oversized]),
+            Err(VitaError::ExtensionContextOnly)
+        ));
+        assert!(matches!(
+            packet.resize_extension_context_payload(oversized),
+            Err(VitaError::ExtensionContextOnly)
         ));
     }
 
