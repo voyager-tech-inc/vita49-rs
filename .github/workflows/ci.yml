@@ -32,11 +32,17 @@ jobs:
     steps:
       - name: Install test deps
         run: |
-          # Add the official Wireshark PPA
-          sudo add-apt-repository ppa:wireshark-dev/stable -y
-          sudo apt-get update
+          # Add the official Wireshark PPA without updating yet
+          sudo add-apt-repository --no-update -y ppa:wireshark-dev/stable
+
+          # Force the PPA source to use standard amd64 instead of the empty amd64v3 index
+          echo "Architectures: amd64" | sudo tee -a /etc/apt/sources.list.d/wireshark-dev-ubuntu-stable-*.sources
+
+          # Also disable Architecture-Variants on update so APT fetches amd64 Packages
+          sudo apt-get -o Acquire::Retries=5 -o APT::Architecture-Variants="" update
 
           if ! apt-cache policy tshark | grep -q 'ppa.launchpadcontent.net'; then
+            apt-cache policy tshark
             echo "::error::Wireshark PPA is not available — tshark would come from the default Ubuntu repo"
             exit 1
           fi
@@ -46,7 +52,7 @@ jobs:
           echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
 
           # Install tshark for the integration tests and libpcap-dev for pcap_reader example.
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tshark libpcap-dev
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 -o APT::Architecture-Variants="" install -y tshark libpcap-dev
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Install Rust
